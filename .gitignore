@@ -1,0 +1,29 @@
+# Logs
+*.log
+arranque.log
+child_debug.log
+server.log
+server_crash.log
+
+# macOS
+.DS_Store
+
+# Node
+node_modules/
+dist/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+.venv/
+
+# Archivos de prueba / temporales
+test.mp3
+full_studies_data.json
+hojasdetrabajobiblicodehechosdelosapstoles_/
+
+# Firebase emulator
+.firebase/

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transcriptor Hernando — IA Profesional</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=2.2">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎙️</text></svg>">
+</head>
+
+<body>
+    <div class="bg-animation">
+        <div class="bg-orb bg-orb-1"></div>
+        <div class="bg-orb bg-orb-2"></div>
+    </div>
+
+    <div class="app-container">
+        <header class="app-header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="logo-icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                            <line x1="12" y1="19" x2="12" y2="23" />
+                            <line x1="8" y1="23" x2="16" y2="23" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="app-title">Transcriptor Hernando <span class="version-tag">PRO</span></h1>
+                        <p class="app-subtitle">Adaptación de Sermones con IA</p>
+                    </div>
+                </div>
+                <div class="header-status">
+                    <button class="btn-icon" id="btn-settings" title="Configuración" onclick="abrirSettings()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        </svg>
+                    </button>
+                    <div class="status-indicator" id="status-indicator">
+                        <span class="status-dot"></span>
+                        <span class="status-text" id="connection-status">Cargando...</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <section class="upload-section">
+                <div class="upload-zone" id="upload-zone">
+                    <div class="upload-content">
+                        <div class="upload-icon-wrapper">
+                            <svg class="upload-icon" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="17 8 12 3 7 8" />
+                                <line x1="12" y1="3" x2="12" y2="15" />
+                            </svg>
+                        </div>
+                        <h2 class="upload-title">Sube tu sermón para transformar</h2>
+                        <div class="settings-group" style="margin: 20px auto; max-width: 300px;">
+                            <label class="panel-label" style="display: block; margin-bottom: 8px; font-size: 0.8rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase;">Idioma Original</label>
+                            <select id="select-language" class="panel-textarea" style="height: 40px; min-height: 40px; border-radius: 10px; padding: 0 15px; background: #f8fafc; cursor: pointer; border: 1px solid #e2e8f0; width: 100%;">
+                                <option value="en" selected>🇺🇸 Inglés (Recomendado)</option>
+                                <option value="es">🇪🇸 Español</option>
+                                <option value="">🔍 Auto-detectar (Lento)</option>
+                            </select>
+                        </div>
+                        <p class="upload-subtitle">Arrastra el audio o haz clic para seleccionarlo</p>
+                        <div class="upload-hints">
+                            <span class="hint-tag">MP3 / WAV</span>
+                            <span class="hint-tag">Traducción Pro ✨</span>
+                            <span class="hint-tag">Adaptación Gemini Cloud ☁️</span>
+                        </div>
+                    </div>
+                </div>
+                <input type="file" id="file-input" accept=".mp3,.wav,.m4a" style="display:none;">
+            </section>
+
+            <section class="progress-section" id="progress-section" style="display:none;">
+                <div class="progress-card">
+                    <h3 id="progress-title">Procesando sermón...</h3>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="progress-bar"></div>
+                    </div>
+                    <p id="progress-status" class="progress-status">Iniciando transcripción...</p>
+                </div>
+            </section>
+
+            <section class="transcriptions-section">
+                <h2 class="section-title">🎙️ Sermones Procesados</h2>
+                <div class="transcriptions-list" id="transcriptions-list">
+                    <div class="empty-state">No hay sermones aún.</div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="app-footer">
+            <p>Hecho con ❤️ para la obra del Señor</p>
+        </footer>
+    </div>
+
+    <!-- Modal de Detalle -->
+    <div class="modal-overlay" id="modal-overlay" style="display:none;">
+        <div class="modal modal-wide" id="detail-modal">
+            <div class="modal-header">
+                <h2 id="modal-title">Título del Sermón</h2>
+                <button class="modal-close" onclick="cerrarModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="dual-panel">
+                    <div class="panel panel-en">
+                        <div class="panel-label">🇺🇸 Transcripción Original</div>
+                        <div class="panel-text-readonly" id="readonly-en">...</div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-label">🇪🇸 Adaptación en Español</div>
+                        <textarea class="panel-textarea" id="textarea-es"></textarea>
+                    </div>
+                </div>
+                <audio id="tts-player" controls style="display:none;"></audio>
+            </div>
+            <div class="modal-footer">
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <button class="btn btn-ghost" onclick="cerrarModal()">Cerrar</button>
+                    <button class="btn btn-accent" id="btn-generar-audio" onclick="generarTTS()">🔊 Oír en Español (Gerardo)</button>
+                    <button class="btn btn-primary" id="btn-descargar-audio" onclick="descargarAudio()" style="display:none;" title="Descargar Audio MP3">⬇️ Descargar Audio</button>
+                    <button class="btn btn-gemini" id="btn-gemini-adaptar" onclick="adaptarConGemini()">✨ Adaptar con Gemini Cloud</button>
+                </div>
+                <button class="btn btn-primary" onclick="guardarEdicion()">💾 Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Configuración -->
+    <div class="modal-overlay" id="settings-overlay" style="display:none;">
+        <div class="modal modal-settings">
+            <div class="modal-header">
+                <h2>⚙️ Configuración del Servidor</h2>
+                <button class="modal-close" onclick="cerrarSettings()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-group">
+                    <label class="panel-label">Dirección del Servidor (API URL)</label>
+                    <p class="settings-hint">Si usas la versión web (hosting), asegúrate de que el servidor sea accesible por IP o túnel HTTPS (ej. ngrok).</p>
+                    <input type="text" id="input-server-url" class="panel-textarea" style="height: 48px; min-height: 48px;" placeholder="http://127.0.0.1:5111">
+                </div>
+                <div class="settings-group">
+                    <label class="panel-label">Clave de API Gemini (Opcional)</label>
+                    <p class="settings-hint">Para usar la adaptación sin depender del servidor local.</p>
+                    <input type="password" id="input-gemini-key" class="panel-textarea" style="height: 48px; min-height: 48px;" placeholder="AIzaSy...">
+                </div>
+                <div class="settings-group" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #f1f5f9; text-align: center;">
+                    <label class="panel-label">📂 Instalador Deskstop</label>
+                    <p class="settings-hint">Descarga la versión para Mac para usarla sin depender de la web.</p>
+                    <a href="TranscriptorMac.zip" download class="btn btn-accent" style="display: inline-block; text-decoration: none; width: 100%; box-sizing: border-box;">⬇️ Descargar Transcriptor Mac (.zip)</a>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="cerrarSettings()">Cerrar</button>
+                <button class="btn btn-primary" onclick="guardarSettings()">Guardar Configuración</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+    <script src="app.js?v=2.2"></script>
+</body>
+</html>
