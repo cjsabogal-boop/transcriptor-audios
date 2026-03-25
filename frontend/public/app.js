@@ -10,7 +10,7 @@ let API_BASE = localStorage.getItem('server_url') ||
 // Cache settings
 const SETTINGS = {
     serverUrl: localStorage.getItem('server_url') || 'http://127.0.0.1:5111',
-    geminiKey: localStorage.getItem('gemini_key') || ''
+    geminiKey: localStorage.getItem('gemini_key') || 'AIzaSyAuVDK8IlqXUGjbInpsiNqd7zkQNVKdfc0'
 };
 
 let currentTitle = null;
