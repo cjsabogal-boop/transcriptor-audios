@@ -125,7 +125,9 @@ if DEFAULT_MODEL not in ALLOWED_MODELS:
     DEFAULT_MODEL = "small"
 
 # ── Auto-actualización desde GitHub ──
-GITHUB_RAW = "https://raw.githubusercontent.com/cjsabogal-boop/transcriptor-audios/main"
+# Usamos la API de contenidos (con Accept raw) en vez de raw.githubusercontent.com
+# para evitar el caché de CDN y que las actualizaciones sean inmediatas.
+GITHUB_API = "https://api.github.com/repos/cjsabogal-boop/transcriptor-audios/contents"
 UPDATE_FILES = [
     "server.py",
     "run_server.sh",
@@ -796,10 +798,11 @@ def api_update():
     ROOT = os.path.dirname(os.path.abspath(__file__))
     updated, errors = [], []
     server_changed = False
+    headers = {"Accept": "application/vnd.github.raw", "User-Agent": "transcriptor-updater"}
     for rel in UPDATE_FILES:
-        url = f"{GITHUB_RAW}/{rel}"
+        url = f"{GITHUB_API}/{rel}?ref=main"
         try:
-            r = requests.get(url, timeout=25)
+            r = requests.get(url, headers=headers, timeout=25)
             if r.status_code != 200:
                 errors.append(f"{rel}: HTTP {r.status_code}")
                 continue
