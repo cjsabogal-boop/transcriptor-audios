@@ -430,6 +430,74 @@ def install_dependencies():
     t.start()
     return jsonify({"success": True})
 
+PROMPTS_POR_MODO = {
+    "general": (
+        "Eres un editor profesional. Toma la siguiente transcripción cruda de un audio "
+        "(puede ser un podcast, charla, conferencia, entrevista, audio personal, etc.) y "
+        "produce una versión limpia, fluida y profesional en ESPAÑOL.\n\n"
+        "INSTRUCCIONES:\n"
+        "1. ELIMINA muletillas, repeticiones, palabras de relleno, falsos comienzos y silencios verbales (eh, ah, este, o sea, pues, ¿no?).\n"
+        "2. CONSERVA el contenido sustantivo: ideas, datos, ejemplos, anécdotas, conclusiones.\n"
+        "3. Si el original está en inglés u otro idioma, TRADÚCELO al español natural.\n"
+        "4. Mejora la fluidez para que se lea de corrido, manteniendo el tono del autor.\n"
+        "5. Conserva los nombres propios, cifras y citas tal cual.\n"
+        "6. Si hay claramente varios bloques temáticos, separa con párrafos.\n"
+    ),
+    "interview": (
+        "Eres un editor de entrevistas. Toma la siguiente transcripción cruda y produce "
+        "una versión limpia en formato de diálogo en ESPAÑOL.\n\n"
+        "INSTRUCCIONES:\n"
+        "1. Detecta cambios de hablante e identifícalos como 'Entrevistador:' y 'Invitado:' (o nombres si los menciona).\n"
+        "2. Elimina muletillas, repeticiones y falsos comienzos.\n"
+        "3. Traduce al español si el original está en otro idioma.\n"
+        "4. Mantén las preguntas y respuestas completas, sin perder ideas importantes.\n"
+        "5. Cada intervención en un párrafo separado.\n"
+    ),
+    "summary": (
+        "Eres un editor experto en sintetizar. Toma la siguiente transcripción y produce "
+        "un RESUMEN EJECUTIVO en ESPAÑOL.\n\n"
+        "INSTRUCCIONES:\n"
+        "1. Empieza con 1-2 oraciones que capturen la idea principal.\n"
+        "2. Sigue con 3-7 puntos clave en párrafos cortos (no uses viñetas ni markdown).\n"
+        "3. Cierra con una conclusión o llamado a la acción si lo hay.\n"
+        "4. Traduce al español si el original está en otro idioma.\n"
+        "5. Mantén nombres propios, cifras y citas relevantes.\n"
+    ),
+    "sermon": (
+        "Eres un editor profesional de contenido cristiano en español. Toma la siguiente "
+        "transcripción de un sermón y produce un guion de audio fluido, claro y profesional en ESPAÑOL.\n\n"
+        "INSTRUCCIONES OBLIGATORIAS:\n"
+        "1. ELIMINA completamente: anuncios iniciales, letras de canciones, avisos finales, saludos de bienvenida al servicio, instrucciones logísticas.\n"
+        "2. ENFÓCATE EXCLUSIVAMENTE en el mensaje bíblico/sermón principal.\n"
+        "3. Si el texto original está en inglés, tradúcelo al español de forma natural y fluida.\n"
+        "4. Adapta el texto para que suene natural al ser LEÍDO EN VOZ ALTA (es un guion de audio).\n"
+        "5. Mantén las citas bíblicas y referencias escriturales.\n"
+        "6. Usa un tono cálido, cercano y pastoral.\n"
+    ),
+    "raw": (
+        "Eres un editor literal. Toma la siguiente transcripción cruda y produce una versión "
+        "que conserve EXACTAMENTE el contenido, solo con correcciones mínimas en ESPAÑOL.\n\n"
+        "INSTRUCCIONES:\n"
+        "1. Corrige solo errores evidentes de transcripción (palabras mal entendidas, puntuación).\n"
+        "2. NO elimines muletillas, NO reformules, NO resumas.\n"
+        "3. Si el original está en otro idioma, traduce literalmente.\n"
+        "4. Mantén el orden y todas las palabras del original.\n"
+    ),
+}
+
+REGLAS_FORMATO_COMUNES = (
+    "\nREGLAS DE FORMATO:\n"
+    "- Devuelve ÚNICAMENTE el texto adaptado, listo para leer.\n"
+    "- NO incluyas introducciones como 'Aquí tienes...', 'Claro...', 'A continuación...'.\n"
+    "- NO uses formato Markdown (**, ##, ---, viñetas).\n"
+    "- Solo texto puro, párrafos separados por líneas en blanco.\n\n"
+)
+
+def construir_prompt(mode, texto_original):
+    base = PROMPTS_POR_MODO.get(mode, PROMPTS_POR_MODO["general"])
+    return base + REGLAS_FORMATO_COMUNES + f"TRANSCRIPCIÓN ORIGINAL:\n{texto_original}"
+
+
 @app.route("/api/gemini/transform", methods=["POST"])
 def gemini_transform():
     import traceback
@@ -437,8 +505,11 @@ def gemini_transform():
         import google.generativeai as genai
         data = request.json
         text_en = data.get("text_en", "")
-        title = data.get("title", "Sermón")
-        
+        title = data.get("title", "Audio")
+        mode = data.get("mode", "general")
+        if mode not in PROMPTS_POR_MODO:
+            mode = "general"
+
         if not text_en:
             # Intentar cargar desde el archivo si no viene en el body
             safe_title = secure_filename(title)
@@ -452,42 +523,26 @@ def gemini_transform():
                     print(f"⚠️ Error al leer JSON para Gemini: {e}")
 
         if not text_en:
-            return jsonify({"success": False, "msg": "No hay texto en inglés para procesar."}), 400
+            return jsonify({"success": False, "msg": "No hay texto para procesar."}), 400
 
         api_key = os.environ.get("GOOGLE_API_KEY")
         if not api_key:
             return jsonify({
-                "success": False, 
+                "success": False,
                 "msg": "Falta la clave de API de Gemini (GOOGLE_API_KEY). Configúrala en el servidor."
             }), 401
 
-        print(f"✨ Iniciando adaptación Gemini para: {title}")
+        print(f"✨ Adaptación Gemini [{mode}] para: {title}")
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-2.5-flash-lite')
-        
-        prompt = (
-            "Eres un editor profesional de contenido cristiano en español. "
-            "Tu tarea es tomar la siguiente transcripción de un sermón y producir un guion de audio fluido, claro y profesional en español.\n\n"
-            "INSTRUCCIONES OBLIGATORIAS:\n"
-            "1. ELIMINA completamente: anuncios iniciales, letras de canciones, avisos finales, saludos de bienvenida al servicio, instrucciones logísticas.\n"
-            "2. ENFÓCATE EXCLUSIVAMENTE en el mensaje bíblico/sermón principal.\n"
-            "3. Si el texto original está en inglés, tradúcelo al español de forma natural y fluida.\n"
-            "4. Adapta el texto para que suene natural al ser LEÍDO EN VOZ ALTA (es un guion de audio).\n"
-            "5. Mantén las citas bíblicas y referencias escriturales.\n"
-            "6. Usa un tono cálido, cercano y pastoral.\n\n"
-            "REGLAS DE FORMATO:\n"
-            "- Devuelve ÚNICAMENTE el texto adaptado, listo para leer.\n"
-            "- NO incluyas introducciones como 'Aquí tienes...', 'Claro...', 'A continuación...'.\n"
-            "- NO uses formato Markdown (**, ##, ---, viñetas).\n"
-            "- Solo texto puro, párrafos separados por líneas en blanco.\n\n"
-            f"TRANSCRIPCIÓN ORIGINAL:\n{text_en}"
-        )
-        
+
+        prompt = construir_prompt(mode, text_en)
+
         response = model.generate_content(prompt)
         text_es = response.text.replace('```markdown', '').replace('```', '').strip()
-        
-        print(f"✅ Adaptación exitosa para: {title}")
-        return jsonify({"success": True, "text_es": text_es})
+
+        print(f"✅ Adaptación exitosa [{mode}]: {title}")
+        return jsonify({"success": True, "text_es": text_es, "mode": mode})
     except Exception as e:
         err_msg = traceback.format_exc()
         print(f"❌ Error CRÍTICO en Gemini:\n{err_msg}")

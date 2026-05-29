@@ -1,0 +1,24 @@
+name: Deploy a Firebase Hosting + Firestore
+
+# Deploy automático: cada push a main publica el sitio y las reglas de Firestore.
+# No requiere terminal. Ver README → "Deploy automático" para el setup inicial del secret.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: {} # permite lanzarlo a mano desde la pestaña Actions de GitHub
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repo
+        uses: actions/checkout@v4
+
+      - name: Deploy hosting + firestore rules
+        uses: w9jds/firebase-action@v14.10.1
+        with:
+          args: deploy --only hosting,firestore:rules --project transcriptor-hernando-2026
+        env:
+          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_TRANSCRIPTOR_HERNANDO_2026 }}

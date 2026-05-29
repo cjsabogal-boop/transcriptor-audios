@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transcriptor Hernando — Acceso Privado</title>
+    <title>Transcriptor de Audios — Acceso Privado</title>
     <meta name="robots" content="noindex, nofollow">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -36,43 +36,116 @@
         .login-icon { font-size: 56px; margin-bottom: 16px; }
         .login-title { color: #fff; font-size: 1.6rem; font-weight: 700; margin-bottom: 6px; }
         .login-subtitle { color: rgba(255,255,255,0.5); font-size: 0.9rem; margin-bottom: 32px; }
-        .login-input {
+        .login-google-btn {
             width: 100%;
             padding: 14px 18px;
             border-radius: 12px;
             border: 1px solid rgba(255,255,255,0.15);
-            background: rgba(255,255,255,0.08);
-            color: #fff;
-            font-size: 1rem;
-            font-family: 'Outfit', sans-serif;
-            outline: none;
-            box-sizing: border-box;
-            margin-bottom: 14px;
-            letter-spacing: 2px;
-            text-align: center;
-        }
-        .login-input::placeholder { letter-spacing: 0; color: rgba(255,255,255,0.3); }
-        .login-input:focus { border-color: rgba(139,92,246,0.6); box-shadow: 0 0 0 3px rgba(139,92,246,0.2); }
-        .login-btn {
-            width: 100%;
-            padding: 14px;
-            border-radius: 12px;
-            border: none;
-            background: linear-gradient(135deg, #7c3aed, #4f46e5);
-            color: #fff;
+            background: #fff;
+            color: #1f2937;
             font-size: 1rem;
             font-weight: 600;
             font-family: 'Outfit', sans-serif;
             cursor: pointer;
-            transition: opacity 0.2s;
+            transition: opacity 0.2s, transform 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
         }
-        .login-btn:hover { opacity: 0.85; }
-        .login-error {
-            color: #f87171;
+        .login-google-btn:hover { opacity: 0.92; }
+        .login-google-btn:active { transform: scale(0.98); }
+        .login-google-btn:disabled { opacity: 0.6; cursor: wait; }
+        .login-google-btn svg { width: 20px; height: 20px; }
+        .login-status {
+            color: rgba(255,255,255,0.6);
             font-size: 0.85rem;
-            margin-top: 12px;
+            margin-top: 16px;
             min-height: 20px;
         }
+        .login-status.error { color: #f87171; }
+        .login-signout {
+            margin-top: 18px;
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.15);
+            color: rgba(255,255,255,0.6);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.85rem;
+        }
+        .login-signout:hover { color: #fff; border-color: rgba(255,255,255,0.3); }
+
+        /* User chip in header */
+        .user-chip {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 8px 6px 12px;
+            background: rgba(0,0,0,0.04);
+            border-radius: 999px;
+            font-size: 0.85rem;
+            color: #475569;
+        }
+        .user-chip-email { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .user-chip-btn {
+            background: transparent;
+            border: none;
+            color: #64748b;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+        .user-chip-btn:hover { background: rgba(0,0,0,0.06); color: #1e293b; }
+
+        /* Admin modal */
+        .admin-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            background: #f8fafc;
+        }
+        .admin-row-email { font-weight: 500; color: #1e293b; flex: 1; overflow: hidden; text-overflow: ellipsis; }
+        .admin-row-badge {
+            font-size: 0.7rem;
+            background: #ddd6fe;
+            color: #5b21b6;
+            padding: 2px 8px;
+            border-radius: 999px;
+            margin-right: 8px;
+        }
+        .admin-row-badge.super { background: #fef3c7; color: #92400e; }
+        .admin-row-btn {
+            background: transparent;
+            border: 1px solid #e2e8f0;
+            color: #64748b;
+            cursor: pointer;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            margin-left: 4px;
+            font-family: 'Outfit', sans-serif;
+        }
+        .admin-row-btn:hover { background: #f1f5f9; color: #1e293b; }
+        .admin-row-btn.danger:hover { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+        .admin-add-row { display: flex; gap: 8px; margin-top: 16px; }
+        .admin-add-row input {
+            flex: 1;
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.95rem;
+            outline: none;
+        }
+        .admin-add-row input:focus { border-color: #8b5cf6; box-shadow: 0 0 0 3px rgba(139,92,246,0.15); }
+        .admin-add-row label { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #64748b; padding: 0 10px; }
     </style>
 </head>
 
@@ -82,35 +155,157 @@
     <div id="login-screen">
         <div class="login-card">
             <div class="login-icon">🎙️</div>
-            <div class="login-title">Transcriptor Hernando</div>
-            <div class="login-subtitle">Acceso privado — Palabra que Transforma</div>
-            <input type="password" id="login-input" class="login-input" placeholder="Contraseña" onkeydown="if(event.key==='Enter') verificarLogin()">
-            <button class="login-btn" onclick="verificarLogin()">Entrar →</button>
-            <div class="login-error" id="login-error"></div>
+            <div class="login-title">Transcriptor de Audios</div>
+            <div class="login-subtitle">Acceso privado</div>
+            <button id="btn-google-signin" class="login-google-btn">
+                <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                    <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.2-.1-2.3-.4-3.5z"/>
+                    <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 16 18.9 13 24 13c3.1 0 5.8 1.2 8 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+                    <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.5-4.5 2.4-7.2 2.4-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.6 39.6 16.2 44 24 44z"/>
+                    <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.1 5.7l6.2 5.2C40.9 35.4 44 30.1 44 24c0-1.2-.1-2.3-.4-3.5z"/>
+                </svg>
+                Entrar con Google
+            </button>
+            <div class="login-status" id="login-status">Inicia sesión con una cuenta autorizada.</div>
+            <button id="btn-signout-denied" class="login-signout" style="display:none;">Salir y probar con otra cuenta</button>
         </div>
     </div>
 
-    <script>
-        (function() {
-            const PASS = 'Hernando2026.$$';
-            const KEY  = 'txr_auth';
-            function verificarLogin() {
-                const val = document.getElementById('login-input').value;
-                if (val === PASS) {
-                    sessionStorage.setItem(KEY, '1');
-                    document.getElementById('login-screen').style.display = 'none';
-                } else {
-                    const err = document.getElementById('login-error');
-                    err.textContent = 'Contraseña incorrecta. Inténtalo de nuevo.';
-                    document.getElementById('login-input').value = '';
-                    setTimeout(() => err.textContent = '', 3000);
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+        import {
+            getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+        } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+        import {
+            getFirestore, doc, getDoc, setDoc, deleteDoc,
+            collection, getDocs, serverTimestamp
+        } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+
+        // Config pública del proyecto Firebase (no es secreto)
+        const firebaseConfig = {
+            apiKey: "AIzaSyAVjbo7g6mO8PWviJm70k7i5anIBol6_v8",
+            authDomain: "transcriptor-hernando-2026.firebaseapp.com",
+            projectId: "transcriptor-hernando-2026",
+            storageBucket: "transcriptor-hernando-2026.firebasestorage.app",
+            messagingSenderId: "519539447144",
+            appId: "1:519539447144:web:2103a961a6c74e07c2b2dd"
+        };
+
+        // Super admin hardcodeado: siempre tiene acceso aunque Firestore esté vacío.
+        // Sirve para bootstrap inicial y para no quedar nunca fuera de la app.
+        const SUPER_ADMIN_EMAIL = "cjsabogal@gmail.com";
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+
+        const loginScreen = document.getElementById('login-screen');
+        const loginStatus = document.getElementById('login-status');
+        const btnGoogle = document.getElementById('btn-google-signin');
+        const btnSignoutDenied = document.getElementById('btn-signout-denied');
+
+        function setStatus(msg, isError = false) {
+            loginStatus.textContent = msg;
+            loginStatus.classList.toggle('error', isError);
+        }
+
+        async function checkAuthorization(user) {
+            const email = (user.email || '').toLowerCase().trim();
+            if (!email) return { authorized: false, isAdmin: false };
+            if (email === SUPER_ADMIN_EMAIL.toLowerCase()) {
+                return { authorized: true, isAdmin: true, isSuper: true };
+            }
+            try {
+                const snap = await getDoc(doc(db, 'authorized_emails', email));
+                if (snap.exists()) {
+                    return { authorized: true, isAdmin: snap.data().isAdmin === true, isSuper: false };
                 }
+            } catch (e) {
+                console.error('Error leyendo authorized_emails:', e);
             }
-            window.verificarLogin = verificarLogin;
-            if (sessionStorage.getItem(KEY) === '1') {
-                document.getElementById('login-screen').style.display = 'none';
+            return { authorized: false, isAdmin: false, isSuper: false };
+        }
+
+        btnGoogle.addEventListener('click', async () => {
+            btnGoogle.disabled = true;
+            setStatus('Abriendo Google...');
+            try {
+                await signInWithPopup(auth, provider);
+            } catch (e) {
+                console.error(e);
+                setStatus(e.code === 'auth/popup-closed-by-user'
+                    ? 'Cerraste la ventana de Google.'
+                    : `Error: ${e.message}`, true);
+                btnGoogle.disabled = false;
             }
-        })();
+        });
+
+        btnSignoutDenied.addEventListener('click', async () => {
+            await signOut(auth);
+            btnSignoutDenied.style.display = 'none';
+            btnGoogle.style.display = '';
+            setStatus('Inicia sesión con una cuenta autorizada.');
+        });
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                loginScreen.style.display = '';
+                btnGoogle.disabled = false;
+                btnGoogle.style.display = '';
+                btnSignoutDenied.style.display = 'none';
+                window.__currentUser = null;
+                window.dispatchEvent(new CustomEvent('auth:signedout'));
+                return;
+            }
+            setStatus(`Verificando ${user.email}...`);
+            const access = await checkAuthorization(user);
+            if (!access.authorized) {
+                setStatus(`La cuenta ${user.email} no está autorizada. Pídele acceso al administrador.`, true);
+                btnGoogle.style.display = 'none';
+                btnSignoutDenied.style.display = '';
+                window.__currentUser = null;
+                return;
+            }
+            window.__currentUser = {
+                email: user.email,
+                displayName: user.displayName || user.email,
+                photoURL: user.photoURL || '',
+                isAdmin: access.isAdmin,
+                isSuper: access.isSuper === true
+            };
+            loginScreen.style.display = 'none';
+            window.dispatchEvent(new CustomEvent('auth:signedin', { detail: window.__currentUser }));
+        });
+
+        // Exponer helpers para el panel admin (admin.js / app.js)
+        window.__authApi = {
+            signOut: () => signOut(auth),
+            listAuthorized: async () => {
+                const snap = await getDocs(collection(db, 'authorized_emails'));
+                const out = [];
+                snap.forEach(d => out.push({ email: d.id, ...d.data() }));
+                return out;
+            },
+            addAuthorized: async (email, isAdmin = false) => {
+                const e = email.toLowerCase().trim();
+                if (!e || !e.includes('@')) throw new Error('Email inválido');
+                await setDoc(doc(db, 'authorized_emails', e), {
+                    email: e,
+                    isAdmin: !!isAdmin,
+                    addedAt: serverTimestamp(),
+                    addedBy: (window.__currentUser && window.__currentUser.email) || 'unknown'
+                });
+            },
+            removeAuthorized: async (email) => {
+                await deleteDoc(doc(db, 'authorized_emails', email.toLowerCase().trim()));
+            },
+            setAdminFlag: async (email, isAdmin) => {
+                const e = email.toLowerCase().trim();
+                await setDoc(doc(db, 'authorized_emails', e), { isAdmin: !!isAdmin }, { merge: true });
+            },
+            SUPER_ADMIN_EMAIL
+        };
     </script>
     <div class="bg-animation">
         <div class="bg-orb bg-orb-1"></div>
@@ -130,11 +325,16 @@
                         </svg>
                     </div>
                     <div>
-                        <h1 class="app-title">Transcriptor Hernando <span class="version-tag">PRO</span></h1>
-                        <p class="app-subtitle">Adaptación de Sermones con IA</p>
+                        <h1 class="app-title">Transcriptor de Audios <span class="version-tag">PRO</span></h1>
+                        <p class="app-subtitle">Transcripción y adaptación de audios con IA</p>
                     </div>
                 </div>
                 <div class="header-status">
+                    <div class="user-chip" id="user-chip" style="display:none;">
+                        <span class="user-chip-email" id="user-chip-email"></span>
+                        <button class="user-chip-btn" id="btn-admin-panel" title="Gestionar usuarios autorizados" style="display:none;">👥</button>
+                        <button class="user-chip-btn" id="btn-signout" title="Cerrar sesión">Salir</button>
+                    </div>
                     <button class="btn-icon" id="btn-settings" title="Configuración" onclick="abrirSettings()">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="3"></circle>
@@ -160,20 +360,32 @@
                                 <line x1="12" y1="3" x2="12" y2="15" />
                             </svg>
                         </div>
-                        <h2 class="upload-title">Sube tu sermón para transformar</h2>
-                        <div class="settings-group" style="margin: 20px auto; max-width: 300px;">
-                            <label class="panel-label" style="display: block; margin-bottom: 8px; font-size: 0.8rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase;">Idioma Original</label>
-                            <select id="select-language" class="panel-textarea" style="height: 40px; min-height: 40px; border-radius: 10px; padding: 0 15px; background: #f8fafc; cursor: pointer; border: 1px solid #e2e8f0; width: 100%;">
-                                <option value="en" selected>🇺🇸 Inglés (Recomendado)</option>
-                                <option value="es">🇪🇸 Español</option>
-                                <option value="">🔍 Auto-detectar (Lento)</option>
-                            </select>
+                        <h2 class="upload-title">Sube un audio para transcribir</h2>
+                        <div class="settings-group" style="margin: 20px auto; max-width: 360px; display:flex; flex-direction:column; gap: 12px;">
+                            <div>
+                                <label class="panel-label" style="display: block; margin-bottom: 8px; font-size: 0.8rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase;">Idioma Original</label>
+                                <select id="select-language" class="panel-textarea" style="height: 40px; min-height: 40px; border-radius: 10px; padding: 0 15px; background: #f8fafc; cursor: pointer; border: 1px solid #e2e8f0; width: 100%;">
+                                    <option value="en" selected>🇺🇸 Inglés (Recomendado)</option>
+                                    <option value="es">🇪🇸 Español</option>
+                                    <option value="">🔍 Auto-detectar (Lento)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="panel-label" style="display: block; margin-bottom: 8px; font-size: 0.8rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase;">Tipo de contenido</label>
+                                <select id="select-mode" class="panel-textarea" style="height: 40px; min-height: 40px; border-radius: 10px; padding: 0 15px; background: #f8fafc; cursor: pointer; border: 1px solid #e2e8f0; width: 100%;">
+                                    <option value="general" selected>🎙️ General (podcast, charla, audio)</option>
+                                    <option value="interview">💬 Entrevista / Diálogo</option>
+                                    <option value="summary">📝 Resumen ejecutivo</option>
+                                    <option value="sermon">⛪ Sermón / Contenido cristiano</option>
+                                    <option value="raw">📄 Solo transcripción literal</option>
+                                </select>
+                            </div>
                         </div>
                         <p class="upload-subtitle">Arrastra el audio o haz clic para seleccionarlo</p>
                         <div class="upload-hints">
-                            <span class="hint-tag">MP3 / WAV</span>
-                            <span class="hint-tag">Traducción Pro ✨</span>
-                            <span class="hint-tag">Adaptación Gemini Cloud ☁️</span>
+                            <span class="hint-tag">MP3 / WAV / M4A</span>
+                            <span class="hint-tag">Traducción ✨</span>
+                            <span class="hint-tag">Adaptación con Gemini ☁️</span>
                         </div>
                     </div>
                 </div>
@@ -182,7 +394,7 @@
 
             <section class="progress-section" id="progress-section" style="display:none;">
                 <div class="progress-card">
-                    <h3 id="progress-title">Procesando sermón...</h3>
+                    <h3 id="progress-title">Procesando audio...</h3>
                     <div class="progress-bar-container">
                         <div class="progress-bar" id="progress-bar"></div>
                     </div>
@@ -191,15 +403,15 @@
             </section>
 
             <section class="transcriptions-section">
-                <h2 class="section-title">🎙️ Sermones Procesados</h2>
+                <h2 class="section-title">🎙️ Audios Procesados</h2>
                 <div class="transcriptions-list" id="transcriptions-list">
-                    <div class="empty-state">No hay sermones aún.</div>
+                    <div class="empty-state">No hay audios aún.</div>
                 </div>
             </section>
         </main>
 
         <footer class="app-footer">
-            <p>Hecho con ❤️ para la obra del Señor</p>
+            <p>Transcriptor de Audios · privado</p>
         </footer>
     </div>
 
@@ -207,17 +419,26 @@
     <div class="modal-overlay" id="modal-overlay" style="display:none;">
         <div class="modal modal-wide" id="detail-modal">
             <div class="modal-header">
-                <h2 id="modal-title">Título del Sermón</h2>
+                <h2 id="modal-title">Título del Audio</h2>
                 <button class="modal-close" onclick="cerrarModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="dual-panel">
                     <div class="panel panel-en">
-                        <div class="panel-label">🇺🇸 Transcripción Original</div>
+                        <div class="panel-label">📝 Transcripción Original</div>
                         <div class="panel-text-readonly" id="readonly-en">...</div>
                     </div>
                     <div class="panel">
-                        <div class="panel-label">🇪🇸 Adaptación en Español</div>
+                        <div class="panel-label">
+                            ✨ Versión adaptada
+                            <select id="modal-select-mode" style="margin-left:8px; padding:4px 8px; border-radius:6px; border:1px solid #e2e8f0; background:#fff; font-size:0.8rem; font-family:'Outfit',sans-serif; cursor:pointer;">
+                                <option value="general" selected>General</option>
+                                <option value="interview">Entrevista</option>
+                                <option value="summary">Resumen</option>
+                                <option value="sermon">Sermón cristiano</option>
+                                <option value="raw">Literal</option>
+                            </select>
+                        </div>
                         <textarea class="panel-textarea" id="textarea-es"></textarea>
                     </div>
                 </div>
@@ -226,9 +447,9 @@
             <div class="modal-footer">
                 <div style="display:flex; gap:10px; align-items:center;">
                     <button class="btn btn-ghost" onclick="cerrarModal()">Cerrar</button>
-                    <button class="btn btn-accent" id="btn-generar-audio" onclick="generarTTS()">🔊 Oír en Español (Gerardo)</button>
+                    <button class="btn btn-accent" id="btn-generar-audio" onclick="generarTTS()">🔊 Oír en Español</button>
                     <button class="btn btn-primary" id="btn-descargar-audio" onclick="descargarAudio()" style="display:none;" title="Descargar Audio MP3">⬇️ Descargar Audio</button>
-                    <button class="btn btn-gemini" id="btn-gemini-adaptar" onclick="adaptarConGemini()">✨ Adaptar con Gemini Cloud</button>
+                    <button class="btn btn-gemini" id="btn-gemini-adaptar" onclick="adaptarConGemini()">✨ Adaptar con IA</button>
                 </div>
                 <button class="btn btn-primary" onclick="guardarEdicion()">💾 Guardar Cambios</button>
             </div>
@@ -266,7 +487,162 @@
         </div>
     </div>
 
+    <!-- Modal Admin: Gestión de emails autorizados -->
+    <div class="modal-overlay" id="admin-overlay" style="display:none;">
+        <div class="modal modal-settings">
+            <div class="modal-header">
+                <h2>👥 Usuarios autorizados</h2>
+                <button class="modal-close" id="btn-admin-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="settings-hint" style="margin-bottom: 16px;">Solo estas cuentas de Google pueden entrar. El super admin (<b id="admin-super-email">cjsabogal@gmail.com</b>) siempre tiene acceso.</p>
+                <div id="admin-list">
+                    <p style="color:#94a3b8; text-align:center; padding: 20px 0;">Cargando...</p>
+                </div>
+                <div class="admin-add-row">
+                    <input type="email" id="admin-new-email" placeholder="nuevo@correo.com" autocomplete="off">
+                    <label><input type="checkbox" id="admin-new-isadmin"> Admin</label>
+                    <button class="btn btn-primary" id="btn-admin-add">Agregar</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" id="btn-admin-close-2">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
     <div class="toast-container" id="toast-container"></div>
     <script src="app.js?v=2.4"></script>
+    <script>
+        // ─── Panel admin: gestión de emails autorizados ───
+        (function() {
+            const overlay = document.getElementById('admin-overlay');
+            const listEl = document.getElementById('admin-list');
+            const inputEmail = document.getElementById('admin-new-email');
+            const inputIsAdmin = document.getElementById('admin-new-isadmin');
+            const btnOpen = document.getElementById('btn-admin-panel');
+            const btnClose = document.getElementById('btn-admin-close');
+            const btnClose2 = document.getElementById('btn-admin-close-2');
+            const btnAdd = document.getElementById('btn-admin-add');
+            const userChip = document.getElementById('user-chip');
+            const userChipEmail = document.getElementById('user-chip-email');
+            const btnSignout = document.getElementById('btn-signout');
+            const superEmailEl = document.getElementById('admin-super-email');
+
+            function toastMsg(msg, type = 'info') {
+                if (window.mostrarToast) return window.mostrarToast(msg, type);
+                console.log(`[${type}] ${msg}`);
+            }
+
+            async function renderList() {
+                listEl.innerHTML = '<p style="color:#94a3b8; text-align:center; padding: 20px 0;">Cargando...</p>';
+                try {
+                    const emails = await window.__authApi.listAuthorized();
+                    const superE = (window.__authApi.SUPER_ADMIN_EMAIL || '').toLowerCase();
+                    superEmailEl.textContent = superE;
+
+                    const rows = [];
+                    rows.push(rowSuper(superE));
+                    emails
+                        .filter(e => e.email.toLowerCase() !== superE)
+                        .sort((a, b) => a.email.localeCompare(b.email))
+                        .forEach(e => rows.push(rowNormal(e)));
+
+                    listEl.innerHTML = rows.join('') || '<p style="color:#94a3b8; text-align:center;">Sin emails (solo super admin).</p>';
+                    listEl.querySelectorAll('[data-action]').forEach(btn => {
+                        btn.addEventListener('click', () => handleRowAction(btn.dataset.action, btn.dataset.email));
+                    });
+                } catch (e) {
+                    console.error(e);
+                    listEl.innerHTML = `<p style="color:#dc2626; text-align:center;">Error: ${e.message}</p>`;
+                }
+            }
+
+            function rowSuper(email) {
+                return `<div class="admin-row">
+                    <span class="admin-row-email">${escapeHtml(email)}</span>
+                    <span class="admin-row-badge super">SUPER</span>
+                </div>`;
+            }
+            function rowNormal(e) {
+                const adminBadge = e.isAdmin ? `<span class="admin-row-badge">ADMIN</span>` : '';
+                const toggleLabel = e.isAdmin ? 'Quitar admin' : 'Hacer admin';
+                return `<div class="admin-row">
+                    <span class="admin-row-email">${escapeHtml(e.email)}</span>
+                    ${adminBadge}
+                    <button class="admin-row-btn" data-action="toggle" data-email="${escapeHtml(e.email)}">${toggleLabel}</button>
+                    <button class="admin-row-btn danger" data-action="remove" data-email="${escapeHtml(e.email)}">Quitar</button>
+                </div>`;
+            }
+
+            function escapeHtml(s) {
+                return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+            }
+
+            async function handleRowAction(action, email) {
+                try {
+                    if (action === 'remove') {
+                        if (!confirm(`¿Quitar acceso a ${email}?`)) return;
+                        await window.__authApi.removeAuthorized(email);
+                        toastMsg(`Quitado: ${email}`, 'success');
+                    } else if (action === 'toggle') {
+                        const all = await window.__authApi.listAuthorized();
+                        const cur = all.find(e => e.email === email);
+                        await window.__authApi.setAdminFlag(email, !(cur && cur.isAdmin));
+                        toastMsg(`Actualizado: ${email}`, 'success');
+                    }
+                    await renderList();
+                } catch (e) {
+                    toastMsg(`Error: ${e.message}`, 'error');
+                }
+            }
+
+            btnAdd.addEventListener('click', async () => {
+                const email = inputEmail.value.trim();
+                if (!email || !email.includes('@')) {
+                    toastMsg('Email inválido', 'error');
+                    return;
+                }
+                btnAdd.disabled = true;
+                try {
+                    await window.__authApi.addAuthorized(email, inputIsAdmin.checked);
+                    inputEmail.value = '';
+                    inputIsAdmin.checked = false;
+                    toastMsg(`Agregado: ${email}`, 'success');
+                    await renderList();
+                } catch (e) {
+                    toastMsg(`Error: ${e.message}`, 'error');
+                } finally {
+                    btnAdd.disabled = false;
+                }
+            });
+
+            function openAdmin() {
+                overlay.style.display = '';
+                renderList();
+            }
+            function closeAdmin() { overlay.style.display = 'none'; }
+
+            btnOpen.addEventListener('click', openAdmin);
+            btnClose.addEventListener('click', closeAdmin);
+            btnClose2.addEventListener('click', closeAdmin);
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) closeAdmin(); });
+
+            btnSignout.addEventListener('click', async () => {
+                if (window.__authApi) await window.__authApi.signOut();
+            });
+
+            window.addEventListener('auth:signedin', (e) => {
+                const u = e.detail;
+                userChip.style.display = '';
+                userChipEmail.textContent = u.email;
+                btnOpen.style.display = u.isAdmin ? '' : 'none';
+            });
+            window.addEventListener('auth:signedout', () => {
+                userChip.style.display = 'none';
+                closeAdmin();
+            });
+        })();
+    </script>
 </body>
 </html>

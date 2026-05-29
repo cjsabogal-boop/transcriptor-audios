@@ -77,7 +77,7 @@ async function subirArchivo(file) {
         const selectedLang = elements.languageSelect ? elements.languageSelect.value : 'en';
         formData.append('language', selectedLang || 'en');
 
-        showToast('info', 'Subiendo sermón...');
+        showToast('info', 'Subiendo audio...');
         const res = await fetch(`${API_BASE}/api/upload`, { method: 'POST', body: formData });
         const data = await res.json();
 
@@ -140,7 +140,7 @@ function iniciarPollingProgreso() {
             if (data.completed || pct >= 100) {
                 clearInterval(interval);
                 isProcessing = false;
-                showToast('success', '¡Sermón listo!');
+                showToast('success', '¡Audio listo!');
                 setTimeout(async () => { 
                     elements.progressSection.style.display = 'none'; 
                     await cargarTranscripciones(); 
@@ -271,20 +271,37 @@ function cleanGeminiOutput(text) {
     return clean.trim();
 }
 
-// ── Gemini ──
-async function adaptarConGemini() {
-    const btn = document.getElementById('btn-gemini-adaptar');
-    const originalText = elements.readonlyEn.textContent;
-    
-    if (!originalText || originalText.includes('(Sin texto')) {
-        showToast('error', 'No hay texto original para adaptar.');
-        return;
-    }
+// ── Prompts por modo (deben coincidir con server.py PROMPTS_POR_MODO) ──
+const PROMPTS_POR_MODO = {
+    general: `Eres un editor profesional. Toma la siguiente transcripción cruda de un audio (puede ser un podcast, charla, conferencia, entrevista, audio personal, etc.) y produce una versión limpia, fluida y profesional en ESPAÑOL.
 
-    btn.disabled = true;
-    btn.textContent = '✨ Adaptando...';
+INSTRUCCIONES:
+1. ELIMINA muletillas, repeticiones, palabras de relleno, falsos comienzos y silencios verbales (eh, ah, este, o sea, pues, ¿no?).
+2. CONSERVA el contenido sustantivo: ideas, datos, ejemplos, anécdotas, conclusiones.
+3. Si el original está en inglés u otro idioma, TRADÚCELO al español natural.
+4. Mejora la fluidez para que se lea de corrido, manteniendo el tono del autor.
+5. Conserva los nombres propios, cifras y citas tal cual.
+6. Si hay claramente varios bloques temáticos, separa con párrafos.`,
 
-    const SERMON_PROMPT = `Eres un editor profesional de contenido cristiano en español. Tu tarea es tomar la siguiente transcripción de un sermón y producir un guion de audio fluido, claro y profesional en español.
+    interview: `Eres un editor de entrevistas. Toma la siguiente transcripción cruda y produce una versión limpia en formato de diálogo en ESPAÑOL.
+
+INSTRUCCIONES:
+1. Detecta cambios de hablante e identifícalos como 'Entrevistador:' y 'Invitado:' (o nombres si los menciona).
+2. Elimina muletillas, repeticiones y falsos comienzos.
+3. Traduce al español si el original está en otro idioma.
+4. Mantén las preguntas y respuestas completas, sin perder ideas importantes.
+5. Cada intervención en un párrafo separado.`,
+
+    summary: `Eres un editor experto en sintetizar. Toma la siguiente transcripción y produce un RESUMEN EJECUTIVO en ESPAÑOL.
+
+INSTRUCCIONES:
+1. Empieza con 1-2 oraciones que capturen la idea principal.
+2. Sigue con 3-7 puntos clave en párrafos cortos (no uses viñetas ni markdown).
+3. Cierra con una conclusión o llamado a la acción si lo hay.
+4. Traduce al español si el original está en otro idioma.
+5. Mantén nombres propios, cifras y citas relevantes.`,
+
+    sermon: `Eres un editor profesional de contenido cristiano en español. Toma la siguiente transcripción de un sermón y produce un guion de audio fluido, claro y profesional en ESPAÑOL.
 
 INSTRUCCIONES OBLIGATORIAS:
 1. ELIMINA completamente: anuncios iniciales, letras de canciones, avisos finales, saludos de bienvenida al servicio, instrucciones logísticas.
@@ -292,7 +309,18 @@ INSTRUCCIONES OBLIGATORIAS:
 3. Si el texto original está en inglés, tradúcelo al español de forma natural y fluida.
 4. Adapta el texto para que suene natural al ser LEÍDO EN VOZ ALTA (es un guion de audio).
 5. Mantén las citas bíblicas y referencias escriturales.
-6. Usa un tono cálido, cercano y pastoral.
+6. Usa un tono cálido, cercano y pastoral.`,
+
+    raw: `Eres un editor literal. Toma la siguiente transcripción cruda y produce una versión que conserve EXACTAMENTE el contenido, solo con correcciones mínimas en ESPAÑOL.
+
+INSTRUCCIONES:
+1. Corrige solo errores evidentes de transcripción (palabras mal entendidas, puntuación).
+2. NO elimines muletillas, NO reformules, NO resumas.
+3. Si el original está en otro idioma, traduce literalmente.
+4. Mantén el orden y todas las palabras del original.`
+};
+
+const REGLAS_FORMATO_COMUNES = `
 
 REGLAS DE FORMATO:
 - Devuelve ÚNICAMENTE el texto adaptado, listo para leer.
@@ -301,7 +329,34 @@ REGLAS DE FORMATO:
 - Solo texto puro, párrafos separados por líneas en blanco.
 
 TRANSCRIPCIÓN ORIGINAL:
-${originalText}`;
+`;
+
+function obtenerModoSeleccionado() {
+    const modalSelect = document.getElementById('modal-select-mode');
+    if (modalSelect && modalSelect.value) return modalSelect.value;
+    const uploadSelect = document.getElementById('select-mode');
+    if (uploadSelect && uploadSelect.value) return uploadSelect.value;
+    return 'general';
+}
+
+function construirPrompt(mode, originalText) {
+    const base = PROMPTS_POR_MODO[mode] || PROMPTS_POR_MODO.general;
+    return base + REGLAS_FORMATO_COMUNES + originalText;
+}
+
+// ── Gemini ──
+async function adaptarConGemini() {
+    const btn = document.getElementById('btn-gemini-adaptar');
+    const originalText = elements.readonlyEn.textContent;
+    const mode = obtenerModoSeleccionado();
+
+    if (!originalText || originalText.includes('(Sin texto')) {
+        showToast('error', 'No hay texto original para adaptar.');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '✨ Adaptando...';
 
     try {
         // Intento 1: Servidor Local/Configurado
@@ -309,12 +364,12 @@ ${originalText}`;
             const res = await fetch(`${API_BASE}/api/gemini/transform`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: currentTitle, text_en: originalText })
+                body: JSON.stringify({ title: currentTitle, text_en: originalText, mode })
             });
             const data = await res.json();
             if (data.success && data.text_es) {
                 elements.textareaEs.value = cleanGeminiOutput(data.text_es);
-                showToast('success', '¡Adaptación con Gemini lista! ✨');
+                showToast('success', `¡Adaptación lista! (${mode}) ✨`);
                 return;
             }
         } catch (err) {
@@ -330,14 +385,14 @@ ${originalText}`;
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        contents: [{ parts: [{ text: SERMON_PROMPT }] }]
+                        contents: [{ parts: [{ text: construirPrompt(mode, originalText) }] }]
                     })
                 });
                 const data = await res.json();
                 const textEsRaw = data.candidates?.[0]?.content?.parts?.[0]?.text;
                 if (textEsRaw) {
                     elements.textareaEs.value = cleanGeminiOutput(textEsRaw);
-                    showToast('success', '¡Adaptación Gemini Directa exitosa! ✨');
+                    showToast('success', `¡Adaptación Gemini Directa! (${mode}) ✨`);
                     return;
                 }
             } catch (err) {
@@ -406,8 +461,8 @@ async function descargarAudio() {
         return showToast('error', 'No hay audio generado para descargar');
     }
     
-    // Suggested filename based on sermon title
-    const defaultName = `${currentTitle}_español_gerardo.mp3`;
+    // Suggested filename based on audio title
+    const defaultName = `${currentTitle}_español.mp3`;
     const newName = prompt('Ingresa un nombre para tu audio:', defaultName);
     
     // User cancelled
@@ -453,7 +508,7 @@ async function borrarTranscripcion(event, title) {
         const res = await fetch(`${API_BASE}/api/audios/${encodeURIComponent(title)}`, { method: 'DELETE' });
         const data = await res.json();
         if (data.success) {
-            showToast('success', 'Sermón borrado');
+            showToast('success', 'Audio borrado');
             cargarTranscripciones();
         }
     } catch (err) {
@@ -463,7 +518,7 @@ async function borrarTranscripcion(event, title) {
 
 async function renombrarTranscripcion(event, title) {
     if (event) event.stopPropagation();
-    const newTitle = prompt('Nuevo nombre para el sermón:', title);
+    const newTitle = prompt('Nuevo nombre para el audio:', title);
     if (!newTitle || newTitle === title) return;
 
     try {

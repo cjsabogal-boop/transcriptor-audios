@@ -73,7 +73,7 @@ done
 echo ""
 echo "✅ ¡Servidor listo! Abriendo el navegador..."
 echo ""
-open "https://transcriptor-hernando-2026.web.app"
+open "https://transcriptor-audios.web.app"
 
 echo "==========================================================="
 echo "   ✅ SISTEMA ACTIVO — NO CIERRES ESTA VENTANA             "

@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "transcriptor-audios",
     "public": "frontend/public",
     "ignore": [
       "firebase.json",
@@ -10,6 +11,15 @@
       {
         "source": "**",
         "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "**/*.zip",
+        "headers": [
+          { "key": "Content-Disposition", "value": "attachment" },
+          { "key": "Content-Type", "value": "application/zip" }
+        ]
       }
     ]
   },

@@ -1,1 +1,38 @@
-rules_version = '2'; service cloud.firestore { match /databases/{database}/documents { match /{document=**} { allow read, write: if true; } } }
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn()
+        && request.auth.token.email == "cjsabogal@gmail.com";
+    }
+
+    function isAdminEmail(email) {
+      return exists(/databases/$(database)/documents/authorized_emails/$(email))
+        && get(/databases/$(database)/documents/authorized_emails/$(email)).data.isAdmin == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (isSuperAdmin() || isAdminEmail(request.auth.token.email));
+    }
+
+    match /authorized_emails/{email} {
+      // Cualquier usuario autenticado puede leer SU PROPIO doc para validar acceso.
+      allow get: if isSignedIn() && request.auth.token.email == email;
+      // Solo admins pueden listar todos los emails.
+      allow list: if isAdmin();
+      // Solo admins pueden agregar, modificar o quitar.
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Resto de colecciones: cerradas por defecto. Agrega reglas específicas si más adelante
+    // se guarda algo en Firestore (sermones, configuración compartida, etc.).
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
