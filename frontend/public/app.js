@@ -299,6 +299,45 @@ function guardarSettings() {
     cargarTranscripciones();
 }
 
+// ── Buscar actualización (descarga última versión desde GitHub) ──
+async function buscarActualizacion() {
+    const btn = document.getElementById('btn-actualizar');
+    const status = document.getElementById('update-status');
+    const orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '🔄 Buscando…';
+    if (status) status.textContent = 'Descargando última versión…';
+    try {
+        const res = await fetch(`${API_BASE}/api/update`, { method: 'POST' });
+        const data = await res.json();
+
+        if (data.errors && data.errors.length) {
+            if (status) status.textContent = 'Error: ' + data.errors.join(' · ');
+            showToast('error', 'No se pudo actualizar del todo.');
+            return;
+        }
+        if (!data.updated || data.updated.length === 0) {
+            if (status) status.textContent = '✅ Ya tienes la última versión.';
+            showToast('success', 'Ya estás al día.');
+            return;
+        }
+        if (data.needs_restart) {
+            if (status) status.textContent = `✅ Actualizados ${data.updated.length} archivos. Cierra la ventana negra (Terminal) y vuelve a abrir "Transcriptor_Facil.command" para aplicar los cambios.`;
+            showToast('success', '¡Actualizado! Reinicia el servidor para terminar.');
+        } else {
+            if (status) status.textContent = '✅ Actualizado. Recargando…';
+            showToast('success', '¡Actualizado! Recargando…');
+            setTimeout(() => location.reload(), 1200);
+        }
+    } catch (e) {
+        if (status) status.textContent = 'No se pudo conectar para actualizar.';
+        showToast('error', 'Sin conexión para actualizar.');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = orig;
+    }
+}
+
 // ── Modal ──
 let currentAudioUrl = '';
 

@@ -124,6 +124,18 @@ DEFAULT_MODEL = os.environ.get("WHISPER_MODEL", "small").strip().lower()
 if DEFAULT_MODEL not in ALLOWED_MODELS:
     DEFAULT_MODEL = "small"
 
+# ── Auto-actualización desde GitHub ──
+GITHUB_RAW = "https://raw.githubusercontent.com/cjsabogal-boop/transcriptor-audios/main"
+UPDATE_FILES = [
+    "server.py",
+    "run_server.sh",
+    "requirements.txt",
+    "frontend/public/index.html",
+    "frontend/public/app.js",
+    "frontend/public/styles.css",
+    "frontend/public/404.html",
+]
+
 
 def detectar_device():
     if torch is not None and getattr(torch, "cuda", None) is not None and torch.cuda.is_available():
@@ -775,6 +787,46 @@ def descargar_paquete_mac():
     buf.seek(0)
     return send_file(buf, mimetype="application/zip", as_attachment=True,
                      download_name="TranscriptorAudios-Mac.zip")
+
+
+@app.route("/api/update", methods=["POST"])
+def api_update():
+    """Descarga los archivos más recientes del repo en GitHub y reemplaza los
+    locales. El frontend aplica al recargar; si cambia el server hay que reiniciar."""
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+    updated, errors = [], []
+    server_changed = False
+    for rel in UPDATE_FILES:
+        url = f"{GITHUB_RAW}/{rel}"
+        try:
+            r = requests.get(url, timeout=25)
+            if r.status_code != 200:
+                errors.append(f"{rel}: HTTP {r.status_code}")
+                continue
+            new = r.content
+            dest = os.path.join(ROOT, *rel.split("/"))
+            old = b""
+            if os.path.exists(dest):
+                with open(dest, "rb") as f:
+                    old = f.read()
+            if new != old:
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                # Escritura segura: archivo temporal + reemplazo atómico
+                tmp = dest + ".new"
+                with open(tmp, "wb") as f:
+                    f.write(new)
+                os.replace(tmp, dest)
+                updated.append(rel)
+                if rel in ("server.py", "run_server.sh", "requirements.txt"):
+                    server_changed = True
+        except Exception as e:
+            errors.append(f"{rel}: {e}")
+    return jsonify({
+        "success": len(errors) == 0,
+        "updated": updated,
+        "errors": errors,
+        "needs_restart": server_changed,
+    })
 
 
 if __name__ == "__main__":
