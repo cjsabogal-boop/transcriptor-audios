@@ -82,6 +82,16 @@ def find_binary(name):
             return full_path
     return name
 
+@app.after_request
+def no_cache(resp):
+    # App local: nunca cachear, así el navegador siempre carga la última versión
+    # (evita ver pantallas viejas tras actualizar el frontend).
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
+
+
 if CORS:
     CORS(app, resources={r"/api/*": {"origins": "*"}})
 else:
