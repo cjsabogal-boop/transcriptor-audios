@@ -666,6 +666,26 @@ def download_tts_file(filename):
     return send_from_directory(AUDIO_DIR, filename, as_attachment=True)
 
 
+@app.route("/api/translate", methods=["POST"])
+def api_translate():
+    """Traduce texto a español (u otro idioma) con Google Translate libre.
+    No usa Gemini ni ninguna API key."""
+    data = request.json or {}
+    text = (data.get("text") or "").strip()
+    target = (data.get("target") or "es").strip().lower()
+    if not text:
+        return jsonify({"success": False, "msg": "No hay texto para traducir."}), 400
+    try:
+        from deep_translator import GoogleTranslator
+        # Google Translate limita ~5000 chars por llamada: troceamos por seguridad.
+        chunks = [text[i:i + 4500] for i in range(0, len(text), 4500)]
+        traducidos = [GoogleTranslator(source="auto", target=target).translate(c) for c in chunks]
+        return jsonify({"success": True, "text": "\n".join(t for t in traducidos if t)})
+    except Exception as e:
+        print(f"❌ Error traduciendo: {e}")
+        return jsonify({"success": False, "msg": str(e)}), 500
+
+
 PACKAGE_README = """TRANSCRIPTOR DE AUDIOS — Instalación en Mac
 ============================================
 

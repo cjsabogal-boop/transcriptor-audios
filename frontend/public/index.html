@@ -383,43 +383,26 @@
                         <h2 class="upload-title">Sube un audio para transcribir</h2>
                         <div class="settings-group" style="margin: 20px auto; max-width: 380px; display:flex; flex-direction:column; gap: 12px;">
                             <div>
-                                <label class="panel-label" style="display: block; margin-bottom: 8px; font-size: 0.8rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase;">¿Qué hacer con el audio?</label>
-                                <select id="select-task" class="panel-textarea" style="height: 40px; min-height: 40px; border-radius: 10px; padding: 0 15px; background: #f8fafc; cursor: pointer; border: 1px solid #e2e8f0; width: 100%;">
-                                    <option value="transcribe" selected>📝 Transcribir (el audio ya está en español)</option>
-                                    <option value="translate">🌐 Traducir a español (el audio está en otro idioma)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="panel-label" id="label-language" style="display: block; margin-bottom: 8px; font-size: 0.8rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase;">Idioma del audio</label>
-                                <select id="select-language" class="panel-textarea" style="height: 40px; min-height: 40px; border-radius: 10px; padding: 0 15px; background: #f8fafc; cursor: pointer; border: 1px solid #e2e8f0; width: 100%;">
+                                <label class="panel-label">Idioma del audio</label>
+                                <select id="select-language" class="panel-textarea" style="height: 40px; min-height: 40px; padding: 0 15px; width: 100%;">
                                     <option value="es" selected>🇪🇸 Español</option>
                                     <option value="en">🇺🇸 Inglés</option>
                                     <option value="">🔍 Auto-detectar (Lento)</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="panel-label" style="display: block; margin-bottom: 8px; font-size: 0.8rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase;">Modelo (calidad)</label>
-                                <select id="select-model" class="panel-textarea" style="height: 40px; min-height: 40px; border-radius: 10px; padding: 0 15px; background: #f8fafc; cursor: pointer; border: 1px solid #e2e8f0; width: 100%;">
+                                <label class="panel-label">Modelo (calidad)</label>
+                                <select id="select-model" class="panel-textarea" style="height: 40px; min-height: 40px; padding: 0 15px; width: 100%;">
                                     <option value="">Cargando modelos…</option>
                                 </select>
-                                <p class="settings-hint" id="model-hint" style="margin-top:6px; font-size:0.75rem;"></p>
-                            </div>
-                            <div>
-                                <label class="panel-label" style="display: block; margin-bottom: 8px; font-size: 0.8rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase;">Tipo de contenido</label>
-                                <select id="select-mode" class="panel-textarea" style="height: 40px; min-height: 40px; border-radius: 10px; padding: 0 15px; background: #f8fafc; cursor: pointer; border: 1px solid #e2e8f0; width: 100%;">
-                                    <option value="general" selected>🎙️ General (podcast, charla, audio)</option>
-                                    <option value="interview">💬 Entrevista / Diálogo</option>
-                                    <option value="summary">📝 Resumen ejecutivo</option>
-                                    <option value="sermon">⛪ Sermón / Contenido cristiano</option>
-                                    <option value="raw">📄 Solo transcripción literal</option>
-                                </select>
+                                <p class="settings-hint" id="model-hint" style="margin-top:6px;"></p>
                             </div>
                         </div>
                         <p class="upload-subtitle">Arrastra el audio o haz clic para seleccionarlo</p>
                         <div class="upload-hints">
                             <span class="hint-tag">Audio o video (MP3, M4A, WAV, MP4…)</span>
-                            <span class="hint-tag">Traducción ✨</span>
-                            <span class="hint-tag">Adaptación con Gemini ☁️</span>
+                            <span class="hint-tag">100% local</span>
+                            <span class="hint-tag">Traducción opcional 🌐</span>
                         </div>
                     </div>
                 </div>
@@ -457,35 +440,17 @@
                 <button class="modal-close" onclick="cerrarModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="dual-panel">
-                    <div class="panel panel-en">
-                        <div class="panel-label">📝 Transcripción Original</div>
-                        <div class="panel-text-readonly" id="readonly-en">...</div>
-                    </div>
-                    <div class="panel">
-                        <div class="panel-label">
-                            ✨ Versión adaptada
-                            <select id="modal-select-mode" style="margin-left:8px; padding:4px 8px; border-radius:6px; border:1px solid #e2e8f0; background:#fff; font-size:0.8rem; font-family:'DM Sans',sans-serif; cursor:pointer;">
-                                <option value="general" selected>General</option>
-                                <option value="interview">Entrevista</option>
-                                <option value="summary">Resumen</option>
-                                <option value="sermon">Sermón cristiano</option>
-                                <option value="raw">Literal</option>
-                            </select>
-                        </div>
-                        <textarea class="panel-textarea" id="textarea-es"></textarea>
-                    </div>
+                <div class="panel" style="flex:1;">
+                    <div class="panel-label">📝 Transcripción</div>
+                    <textarea class="panel-textarea" id="textarea-es" placeholder="Aquí aparece la transcripción…"></textarea>
                 </div>
-                <audio id="tts-player" controls style="display:none;"></audio>
             </div>
             <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="cerrarModal()">Cerrar</button>
                 <div style="display:flex; gap:10px; align-items:center;">
-                    <button class="btn btn-ghost" onclick="cerrarModal()">Cerrar</button>
-                    <button class="btn btn-accent" id="btn-generar-audio" onclick="generarTTS()">🔊 Oír en Español</button>
-                    <button class="btn btn-primary" id="btn-descargar-audio" onclick="descargarAudio()" style="display:none;" title="Descargar Audio MP3">⬇️ Descargar Audio</button>
-                    <button class="btn btn-gemini" id="btn-gemini-adaptar" onclick="adaptarConGemini()">✨ Adaptar con IA</button>
+                    <button class="btn btn-gemini" id="btn-traducir" onclick="traducir()">🌐 Traducir a español</button>
+                    <button class="btn btn-primary" onclick="guardarEdicion()">💾 Guardar</button>
                 </div>
-                <button class="btn btn-primary" onclick="guardarEdicion()">💾 Guardar Cambios</button>
             </div>
         </div>
     </div>
@@ -503,12 +468,7 @@
                     <p class="settings-hint">Si usas la versión web (hosting), asegúrate de que el servidor sea accesible por IP o túnel HTTPS (ej. ngrok).</p>
                     <input type="text" id="input-server-url" class="panel-textarea" style="height: 48px; min-height: 48px;" placeholder="http://127.0.0.1:5111">
                 </div>
-                <div class="settings-group">
-                    <label class="panel-label">Clave de API Gemini (Opcional)</label>
-                    <p class="settings-hint">Para usar la adaptación sin depender del servidor local.</p>
-                    <input type="password" id="input-gemini-key" class="panel-textarea" style="height: 48px; min-height: 48px;" placeholder="AIzaSy...">
-                </div>
-                <div class="settings-group" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #f1f5f9; text-align: center;">
+                <div class="settings-group" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--line); text-align: center;">
                     <label class="panel-label">📂 Instalador para otro Mac</label>
                     <p class="settings-hint">Descarga el paquete listo para correr en otro Mac (modelo <b>medium</b> por defecto, para máquinas con más RAM).</p>
                     <a id="link-download-mac" href="#" class="btn btn-accent" style="display: inline-block; text-decoration: none; width: 100%; box-sizing: border-box;">⬇️ Descargar Transcriptor Mac (.zip)</a>
@@ -547,7 +507,7 @@
     </div>
 
     <div class="toast-container" id="toast-container"></div>
-    <script src="app.js?v=2.7"></script>
+    <script src="app.js?v=2.8"></script>
     <script>
         // ─── Panel admin: gestión de emails autorizados ───
         (function() {
