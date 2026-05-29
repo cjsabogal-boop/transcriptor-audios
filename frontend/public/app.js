@@ -105,7 +105,12 @@ function setupUpload() {
     const input = elements.fileInput;
     if (!zone || !input) return;
 
-    zone.addEventListener('click', () => input.click());
+    // Solo abrir el selector de archivos al tocar el área vacía de la caja,
+    // NO al tocar los desplegables, botones, inputs o etiquetas de configuración.
+    zone.addEventListener('click', (e) => {
+        if (e.target.closest('select, option, button, input, label, .settings-group')) return;
+        input.click();
+    });
 
     zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('drag-over'); });
     zone.addEventListener('dragleave', (e) => { e.preventDefault(); zone.classList.remove('drag-over'); });
