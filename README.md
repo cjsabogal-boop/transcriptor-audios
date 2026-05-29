@@ -54,8 +54,9 @@ El modelo de Whisper es **configurable** por subida (selector "Modelo (calidad)"
 | `medium` | Muy buena (recomendado) | ~5 GB |
 | `large-v3` | Máxima | ~10 GB |
 
-- **Default del servidor:** variable de entorno `WHISPER_MODEL`. Si no se define, usa `tiny`.
-  - Este Mac (8 GB) → `tiny`.
+- **Motor:** `faster-whisper` (CTranslate2, int8 en CPU) — más rápido y ~60% menos RAM. Respaldo a `openai-whisper`.
+- **Default del servidor:** variable de entorno `WHISPER_MODEL`. Si no se define, usa `small`.
+  - Este Mac (8 GB) → `small` (corre cómodo con faster-whisper).
   - El paquete descargable para la otra máquina → exporta `WHISPER_MODEL=medium` en `run_server.sh`.
 - El endpoint `GET /api/config` expone modelos disponibles, default, device (CPU/CUDA) y RAM detectada.
 
