@@ -129,18 +129,19 @@ fi
 echo "✅ Red + Traducción + TTS + Gemini OK" >> "$LOG"
 echo "✅ Módulos listos"
 
-# ── 5. Instalar Whisper + PyTorch (IA de transcripción local) ──
-if ! python3 -c "import whisper" &> /dev/null; then
+# ── 5. Instalar el motor de transcripción (faster-whisper) ──
+# faster-whisper (CTranslate2) es más rápido y usa mucha menos RAM (int8 en CPU),
+# y NO requiere PyTorch. Ideal para Mac. El modelo se descarga al primer uso.
+if ! python3 -c "import faster_whisper" &> /dev/null; then
     echo ""
-    echo "⚙️  Instalando motor de IA Local (Whisper + PyTorch)..."
-    echo "   ⏳ Esto puede tardar 5-10 minutos la primera vez."
-    echo "   Descargando ~400MB de modelos de inteligencia artificial..."
+    echo "⚙️  Instalando motor de IA Local (faster-whisper)..."
+    echo "   ⏳ Esto puede tardar unos minutos la primera vez."
     echo ""
-    echo "⚙️ Instalando Whisper IA + PyTorch..." >> "$LOG"
-    python3 -m pip install openai-whisper torch --break-system-packages >> "$LOG" 2>&1 || \
-    python3 -m pip install openai-whisper torch >> "$LOG" 2>&1
+    echo "⚙️ Instalando faster-whisper..." >> "$LOG"
+    python3 -m pip install faster-whisper --break-system-packages >> "$LOG" 2>&1 || \
+    python3 -m pip install faster-whisper >> "$LOG" 2>&1
 fi
-echo "✅ Whisper IA Local OK" >> "$LOG"
+echo "✅ Motor faster-whisper OK" >> "$LOG"
 echo "✅ Motor de IA listo"
 
 # ── 6. Matar cualquier instancia anterior del servidor ──

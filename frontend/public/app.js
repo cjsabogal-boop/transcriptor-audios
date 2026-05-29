@@ -295,7 +295,8 @@ function abrirSettings() {
         const ram = APP_CONFIG.total_ram_gb ? `${APP_CONFIG.total_ram_gb} GB RAM` : '';
         const dev = APP_CONFIG.device ? APP_CONFIG.device.toUpperCase() : '';
         const def = APP_CONFIG.default_model || '';
-        info.textContent = `Servidor actual: ${dev}${ram ? ' · ' + ram : ''} · modelo por defecto: ${def}`;
+        const eng = APP_CONFIG.engine || '';
+        info.textContent = `Servidor actual: ${dev}${ram ? ' · ' + ram : ''} · motor: ${eng} · modelo por defecto: ${def}`;
     }
 
     if (elOverlay) elOverlay.style.display = 'flex';

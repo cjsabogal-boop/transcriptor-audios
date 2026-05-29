@@ -7,5 +7,7 @@ deep-translator
 edge-tts
 google-generativeai
 python-dotenv
-openai-whisper
-torch
+faster-whisper
+# Respaldo opcional (motor antiguo, requiere PyTorch ~pesado). No necesario si hay faster-whisper:
+# openai-whisper
+# torch

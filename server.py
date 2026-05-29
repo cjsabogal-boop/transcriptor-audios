@@ -32,6 +32,15 @@ except ImportError:
     torch = None
     whisper = None
 
+# Motor preferido: faster-whisper (CTranslate2). Más rápido y mucho menos RAM
+# (int8 en CPU). Si no está instalado, se cae a openai-whisper.
+try:
+    from faster_whisper import WhisperModel as FasterWhisperModel
+    FW_AVAILABLE = True
+except ImportError:
+    FasterWhisperModel = None
+    FW_AVAILABLE = False
+
 from flask import Flask, jsonify, request, send_file, send_from_directory
 try:
     from flask_cors import CORS
@@ -122,21 +131,29 @@ WHISPER_MODELS = {}
 WHISPER_DEVICE = "cpu"
 
 def cargar_modelo(model_size="base"):
+    """Devuelve una tupla (engine, modelo) donde engine es 'fw' (faster-whisper)
+    u 'ow' (openai-whisper), para saber qué API usar al transcribir."""
     global WHISPER_MODELS, WHISPER_DEVICE
     if model_size in WHISPER_MODELS:
         return WHISPER_MODELS[model_size]
-    
-    WHISPER_DEVICE = "cpu"
-    if torch is not None:
-        if torch.cuda.is_available():
-            WHISPER_DEVICE = "cuda"
-        elif sys.platform == "darwin":
-            WHISPER_DEVICE = "cpu"
-            torch.set_num_threads(mp.cpu_count()) 
-        
-    print(f"📦 Cargando modelo Whisper '{model_size}' en {WHISPER_DEVICE.upper()}...")
-    WHISPER_MODELS[model_size] = whisper.load_model(model_size, device=WHISPER_DEVICE)
-    print(f"✅ Modelo '{model_size}' cargado.")
+
+    device = "cuda" if (torch is not None and getattr(torch, "cuda", None) is not None and torch.cuda.is_available()) else "cpu"
+    WHISPER_DEVICE = device
+
+    if FW_AVAILABLE:
+        # int8 en CPU (rápido y poca RAM); float16 en GPU.
+        compute_type = "float16" if device == "cuda" else "int8"
+        print(f"📦 Cargando faster-whisper '{model_size}' en {device.upper()} ({compute_type})...")
+        modelo = FasterWhisperModel(model_size, device=device, compute_type=compute_type)
+        WHISPER_MODELS[model_size] = ("fw", modelo)
+        print(f"✅ Modelo '{model_size}' cargado (faster-whisper).")
+    else:
+        if sys.platform == "darwin" and torch is not None:
+            torch.set_num_threads(mp.cpu_count())
+        print(f"📦 Cargando openai-whisper '{model_size}' en {device.upper()}...")
+        WHISPER_MODELS[model_size] = ("ow", whisper.load_model(model_size, device=device))
+        print(f"✅ Modelo '{model_size}' cargado (openai-whisper).")
+
     return WHISPER_MODELS[model_size]
 
 def obtener_duracion_audio(ruta):
@@ -192,7 +209,8 @@ def limpiar_temporales():
         pass
 
 def check_dependencies():
-    return torch is None or whisper is None
+    # Falta instalar si no hay NINGÚN motor de transcripción disponible.
+    return not (FW_AVAILABLE or whisper is not None)
 
 
 @app.route("/api/health")
@@ -213,6 +231,7 @@ def api_config():
         "allowed_models": ALLOWED_MODELS,
         "model_info": MODEL_INFO,
         "loaded_models": list(WHISPER_MODELS.keys()),
+        "engine": "faster-whisper" if FW_AVAILABLE else "openai-whisper",
         "device": detectar_device(),
         "total_ram_gb": detectar_ram_gb(),
         "platform": sys.platform,
@@ -333,10 +352,10 @@ def proceso_fondo(ruta_audio, filename, estado, start_time, end_time, language, 
         # 2. Transcribir con el modelo elegido (configurable por el usuario / servidor)
         estado["progress_percent"] = 20.0
         estado["status_text"] = f"Cargando modelo '{model_size}'..."
-        modelo = cargar_modelo(model_size)
+        engine, modelo = cargar_modelo(model_size)
 
         # LOG para depuración
-        print(f"📊 Depuración - Idioma: '{language}', Tarea: '{task}', Archivo: {size_mb_original:.1f}MB, Modelo: {model_size}")
+        print(f"📊 Depuración - Idioma: '{language}', Tarea: '{task}', Archivo: {size_mb_original:.1f}MB, Modelo: {model_size}, Motor: {engine}")
 
         # Idioma de origen para Whisper. Vacío/None => auto-detectar.
         if not language or language.strip() == "" or language == "None":
@@ -352,9 +371,17 @@ def proceso_fondo(ruta_audio, filename, estado, start_time, end_time, language, 
 
         # Transcripción directa (Whisper siempre transcribe en el idioma original;
         # la traducción a español, si se pide, la hace Gemini después en el frontend).
-        resultado = modelo.transcribe(ruta_procesable, language=lang_whisper, fp16=False)
-        texto = resultado["text"].strip()
-        segments = resultado.get("segments", [])
+        if engine == "fw":
+            seg_iter, info = modelo.transcribe(ruta_procesable, language=lang_whisper, beam_size=5)
+            partes, segments = [], []
+            for i, s in enumerate(seg_iter):
+                partes.append(s.text)
+                segments.append({"id": i, "start": s.start, "end": s.end, "text": s.text})
+            texto = "".join(partes).strip()
+        else:
+            resultado = modelo.transcribe(ruta_procesable, language=lang_whisper, fp16=False)
+            texto = resultado["text"].strip()
+            segments = resultado.get("segments", [])
 
         # 3. Guardar resultados.
         # text_en = transcripción cruda original (entrada para la IA).
