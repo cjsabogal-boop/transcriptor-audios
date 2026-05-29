@@ -34,15 +34,86 @@ const elements = {
     ttsPlayer: document.getElementById('tts-player'),
     toastContainer: document.getElementById('toast-container'),
     languageSelect: document.getElementById('select-language'),
+    taskSelect: document.getElementById('select-task'),
+    modelSelect: document.getElementById('select-model'),
 };
+
+// Config del servidor (modelos disponibles, default, hardware)
+let APP_CONFIG = null;
 
 // ── Initialization ──
 document.addEventListener('DOMContentLoaded', () => {
     setupUpload();
+    cargarConfig();
+    setupTaskLanguageLink();
     checkHealth();
     cargarTranscripciones();
     setInterval(checkHealth, 5000);
 });
+
+// ── Cargar configuración del servidor (modelos, hardware) ──
+async function cargarConfig() {
+    try {
+        const res = await fetch(`${API_BASE}/api/config`, { cache: 'no-store' });
+        if (!res.ok) throw new Error('config no disponible');
+        APP_CONFIG = await res.json();
+    } catch (err) {
+        APP_CONFIG = null;
+    }
+    poblarSelectorModelo();
+}
+
+function poblarSelectorModelo() {
+    const sel = elements.modelSelect;
+    if (!sel) return;
+
+    // Fallback si el servidor no respondió
+    const allowed = (APP_CONFIG && APP_CONFIG.allowed_models) || ['tiny', 'base', 'small', 'medium', 'large-v3'];
+    const info = (APP_CONFIG && APP_CONFIG.model_info) || {};
+    const serverDefault = (APP_CONFIG && APP_CONFIG.default_model) || 'tiny';
+    const saved = localStorage.getItem('whisper_model');
+    const seleccionado = (saved && allowed.includes(saved)) ? saved : serverDefault;
+
+    sel.innerHTML = '';
+    allowed.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m;
+        const label = (info[m] && info[m].label) || m;
+        opt.textContent = (m === serverDefault) ? `${label} — predeterminado` : label;
+        if (m === seleccionado) opt.selected = true;
+        sel.appendChild(opt);
+    });
+
+    actualizarHintModelo();
+    sel.addEventListener('change', () => {
+        localStorage.setItem('whisper_model', sel.value);
+        actualizarHintModelo();
+    });
+}
+
+function actualizarHintModelo() {
+    const hint = document.getElementById('model-hint');
+    if (!hint) return;
+    const info = (APP_CONFIG && APP_CONFIG.model_info) || {};
+    const m = elements.modelSelect ? elements.modelSelect.value : '';
+    const ram = info[m] && info[m].ram_gb;
+    const dev = APP_CONFIG && APP_CONFIG.device ? APP_CONFIG.device.toUpperCase() : '';
+    let txt = ram ? `Necesita ~${ram} GB de RAM.` : '';
+    if (dev) txt += ` Procesando en ${dev}.`;
+    hint.textContent = txt.trim();
+}
+
+// El selector de idioma se adapta a la tarea (traducir vs transcribir)
+function setupTaskLanguageLink() {
+    const task = elements.taskSelect;
+    const label = document.getElementById('label-language');
+    if (!task || !label) return;
+    const sync = () => {
+        label.textContent = task.value === 'translate' ? 'Idioma de origen del audio' : 'Idioma del audio';
+    };
+    task.addEventListener('change', sync);
+    sync();
+}
 
 // ── Upload Setup ──
 function setupUpload() {
@@ -73,11 +144,22 @@ async function subirArchivo(file) {
     try {
         const formData = new FormData();
         formData.append('audiofile', file);
-        // Usar selector de idioma (default 'en' si no hay nada o es vacío)
-        const selectedLang = elements.languageSelect ? elements.languageSelect.value : 'en';
-        formData.append('language', selectedLang || 'en');
 
-        showToast('info', 'Subiendo audio...');
+        // Idioma del audio (vacío = auto-detectar)
+        const selectedLang = elements.languageSelect ? elements.languageSelect.value : 'es';
+        formData.append('language', selectedLang);
+
+        // Acción: transcribir (mismo idioma) o traducir a español
+        const task = elements.taskSelect ? elements.taskSelect.value : 'transcribe';
+        formData.append('task', task);
+
+        // Modelo de calidad elegido
+        if (elements.modelSelect && elements.modelSelect.value) {
+            formData.append('model', elements.modelSelect.value);
+        }
+
+        const verbo = task === 'translate' ? 'Traduciendo' : 'Transcribiendo';
+        showToast('info', `Subiendo audio… (${verbo.toLowerCase()})`);
         const res = await fetch(`${API_BASE}/api/upload`, { method: 'POST', body: formData });
         const data = await res.json();
 
@@ -144,10 +226,14 @@ function iniciarPollingProgreso() {
                 setTimeout(async () => { 
                     elements.progressSection.style.display = 'none'; 
                     await cargarTranscripciones(); 
-                    // Abrir automáticamente y adaptar
+                    // Abrir el resultado. Si la acción fue "traducir", lanzamos la IA
+                    // automáticamente; si fue "transcribir", se muestra el texto en
+                    // español tal cual y la adaptación con IA queda OPCIONAL.
                     if (data.title) {
                         abrirModal(data.title);
-                        setTimeout(adaptarConGemini, 1000);
+                        if (data.task === 'translate') {
+                            setTimeout(adaptarConGemini, 1000);
+                        }
                     }
                 }, 2000);
             }
@@ -198,6 +284,20 @@ function abrirSettings() {
     
     if (elUrl) elUrl.value = SETTINGS.serverUrl;
     if (elKey) elKey.value = SETTINGS.geminiKey;
+
+    // Enlace de descarga del paquete (endpoint dinámico del servidor)
+    const dl = document.getElementById('link-download-mac');
+    if (dl) dl.setAttribute('href', `${API_BASE}/api/package/mac`);
+
+    // Info de la máquina del servidor actual
+    const info = document.getElementById('server-machine-info');
+    if (info && APP_CONFIG) {
+        const ram = APP_CONFIG.total_ram_gb ? `${APP_CONFIG.total_ram_gb} GB RAM` : '';
+        const dev = APP_CONFIG.device ? APP_CONFIG.device.toUpperCase() : '';
+        const def = APP_CONFIG.default_model || '';
+        info.textContent = `Servidor actual: ${dev}${ram ? ' · ' + ram : ''} · modelo por defecto: ${def}`;
+    }
+
     if (elOverlay) elOverlay.style.display = 'flex';
 }
 

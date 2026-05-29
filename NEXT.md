@@ -30,8 +30,10 @@
 - [ ] **Persistir `mode` por audio.** Hoy el modo se elige al subir pero no se guarda en el JSON
       del audio. Si reabres el modal, el selector vuelve a "General". Guardar `mode` en el JSON
       y precargar al abrir.
-- [ ] **Hardware:** el M1 8 GB usa modelo `tiny`. Para mejorar calidad probar `base`
-      (~7x realtime, mismo RAM). `small` y arriba no caben cómodamente.
+- [x] **Modelo configurable.** Se elige por subida (selector "Modelo (calidad)") y por servidor
+      con `WHISPER_MODEL`. Este Mac → `tiny`; paquete para el M4 24GB → `medium`. Endpoints
+      `/api/config` (modelos/hardware) y `/api/package/mac` (.zip al vuelo).
+      Opcional futuro: probar `faster-whisper` (CTranslate2) para más velocidad en Apple Silicon.
 - [ ] **Rotar API key de Gemini hardcodeada** en `app.js:13` (`AIzaSyAuVDK8IlqXUGjbInpsiNqd7zkQNVKdfc0`).
       Pasarla solo por env del server o por configuración del usuario.
 

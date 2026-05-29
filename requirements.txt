@@ -1,0 +1,11 @@
+# Dependencias del Transcriptor de Audios
+flask
+werkzeug
+flask-cors
+requests
+deep-translator
+edge-tts
+google-generativeai
+python-dotenv
+openai-whisper
+torch

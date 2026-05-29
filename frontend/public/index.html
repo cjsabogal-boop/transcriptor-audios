@@ -200,6 +200,11 @@
         const db = getFirestore(app);
         const provider = new GoogleAuthProvider();
 
+        // ── Modo local: sin login ──
+        // Si la app se sirve desde el server local (127.0.0.1, localhost o IP de red
+        // privada), se salta el login de Google. El login solo aplica en la nube.
+        const LOCAL_MODE = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(location.hostname);
+
         const loginScreen = document.getElementById('login-screen');
         const loginStatus = document.getElementById('login-status');
         const btnGoogle = document.getElementById('btn-google-signin');
@@ -248,7 +253,7 @@
             setStatus('Inicia sesión con una cuenta autorizada.');
         });
 
-        onAuthStateChanged(auth, async (user) => {
+        if (!LOCAL_MODE) onAuthStateChanged(auth, async (user) => {
             if (!user) {
                 loginScreen.style.display = '';
                 btnGoogle.disabled = false;
@@ -306,6 +311,21 @@
             },
             SUPER_ADMIN_EMAIL
         };
+
+        // ── Arranque en modo local (sin login) ──
+        if (LOCAL_MODE) {
+            loginScreen.style.display = 'none';
+            window.__currentUser = {
+                email: 'local',
+                displayName: 'Local',
+                photoURL: '',
+                isAdmin: false,
+                isSuper: false
+            };
+            // El panel admin gestiona accesos de la nube; en local no aplica.
+            window.__authApi.signOut = async () => {};
+            window.dispatchEvent(new CustomEvent('auth:signedin', { detail: window.__currentUser }));
+        }
     </script>
     <div class="bg-animation">
         <div class="bg-orb bg-orb-1"></div>
@@ -361,14 +381,28 @@
                             </svg>
                         </div>
                         <h2 class="upload-title">Sube un audio para transcribir</h2>
-                        <div class="settings-group" style="margin: 20px auto; max-width: 360px; display:flex; flex-direction:column; gap: 12px;">
+                        <div class="settings-group" style="margin: 20px auto; max-width: 380px; display:flex; flex-direction:column; gap: 12px;">
                             <div>
-                                <label class="panel-label" style="display: block; margin-bottom: 8px; font-size: 0.8rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase;">Idioma Original</label>
+                                <label class="panel-label" style="display: block; margin-bottom: 8px; font-size: 0.8rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase;">¿Qué hacer con el audio?</label>
+                                <select id="select-task" class="panel-textarea" style="height: 40px; min-height: 40px; border-radius: 10px; padding: 0 15px; background: #f8fafc; cursor: pointer; border: 1px solid #e2e8f0; width: 100%;">
+                                    <option value="transcribe" selected>📝 Transcribir (el audio ya está en español)</option>
+                                    <option value="translate">🌐 Traducir a español (el audio está en otro idioma)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="panel-label" id="label-language" style="display: block; margin-bottom: 8px; font-size: 0.8rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase;">Idioma del audio</label>
                                 <select id="select-language" class="panel-textarea" style="height: 40px; min-height: 40px; border-radius: 10px; padding: 0 15px; background: #f8fafc; cursor: pointer; border: 1px solid #e2e8f0; width: 100%;">
-                                    <option value="en" selected>🇺🇸 Inglés (Recomendado)</option>
-                                    <option value="es">🇪🇸 Español</option>
+                                    <option value="es" selected>🇪🇸 Español</option>
+                                    <option value="en">🇺🇸 Inglés</option>
                                     <option value="">🔍 Auto-detectar (Lento)</option>
                                 </select>
+                            </div>
+                            <div>
+                                <label class="panel-label" style="display: block; margin-bottom: 8px; font-size: 0.8rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase;">Modelo (calidad)</label>
+                                <select id="select-model" class="panel-textarea" style="height: 40px; min-height: 40px; border-radius: 10px; padding: 0 15px; background: #f8fafc; cursor: pointer; border: 1px solid #e2e8f0; width: 100%;">
+                                    <option value="">Cargando modelos…</option>
+                                </select>
+                                <p class="settings-hint" id="model-hint" style="margin-top:6px; font-size:0.75rem;"></p>
                             </div>
                             <div>
                                 <label class="panel-label" style="display: block; margin-bottom: 8px; font-size: 0.8rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase;">Tipo de contenido</label>
@@ -475,9 +509,10 @@
                     <input type="password" id="input-gemini-key" class="panel-textarea" style="height: 48px; min-height: 48px;" placeholder="AIzaSy...">
                 </div>
                 <div class="settings-group" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #f1f5f9; text-align: center;">
-                    <label class="panel-label">📂 Instalador Deskstop</label>
-                    <p class="settings-hint">Descarga la versión para Mac para usarla sin depender de la web.</p>
-                    <a href="TranscriptorMac.zip" download class="btn btn-accent" style="display: inline-block; text-decoration: none; width: 100%; box-sizing: border-box;">⬇️ Descargar Transcriptor Mac (.zip)</a>
+                    <label class="panel-label">📂 Instalador para otro Mac</label>
+                    <p class="settings-hint">Descarga el paquete listo para correr en otro Mac (modelo <b>medium</b> por defecto, para máquinas con más RAM).</p>
+                    <a id="link-download-mac" href="#" class="btn btn-accent" style="display: inline-block; text-decoration: none; width: 100%; box-sizing: border-box;">⬇️ Descargar Transcriptor Mac (.zip)</a>
+                    <p class="settings-hint" id="server-machine-info" style="margin-top:10px; font-size:0.72rem; color:#94a3b8;"></p>
                 </div>
             </div>
             <div class="modal-footer">
@@ -512,7 +547,7 @@
     </div>
 
     <div class="toast-container" id="toast-container"></div>
-    <script src="app.js?v=2.4"></script>
+    <script src="app.js?v=2.6"></script>
     <script>
         // ─── Panel admin: gestión de emails autorizados ───
         (function() {

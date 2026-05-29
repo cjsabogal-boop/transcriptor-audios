@@ -88,6 +88,35 @@ os.makedirs(AUDIO_DIR, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = AUDIO_DIR
 SERVER_START_TIME = time.time()
 
+# ── Configuración de modelos Whisper ──
+# De más rápido/ligero a más preciso/pesado.
+ALLOWED_MODELS = ["tiny", "base", "small", "medium", "large-v3"]
+MODEL_INFO = {
+    "tiny":     {"label": "Tiny — rápido, calidad básica",       "ram_gb": 1},
+    "base":     {"label": "Base — equilibrado ligero",           "ram_gb": 1},
+    "small":    {"label": "Small — buena calidad",               "ram_gb": 2},
+    "medium":   {"label": "Medium — muy buena (recomendado)",    "ram_gb": 5},
+    "large-v3": {"label": "Large-v3 — máxima calidad",           "ram_gb": 10},
+}
+# Modelo por defecto: lo define la variable de entorno WHISPER_MODEL.
+# En este Mac (8GB) queda "tiny"; el paquete para la máquina grande exporta "medium".
+DEFAULT_MODEL = os.environ.get("WHISPER_MODEL", "tiny").strip().lower()
+if DEFAULT_MODEL not in ALLOWED_MODELS:
+    DEFAULT_MODEL = "tiny"
+
+
+def detectar_device():
+    if torch is not None and getattr(torch, "cuda", None) is not None and torch.cuda.is_available():
+        return "cuda"
+    return "cpu"
+
+
+def detectar_ram_gb():
+    try:
+        return round(os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") / (1024 ** 3), 1)
+    except Exception:
+        return None
+
 # ── Singleton del modelo Whisper ──
 WHISPER_MODELS = {}
 WHISPER_DEVICE = "cpu"
@@ -175,6 +204,21 @@ def health():
         "is_processing": STATE.get("is_processing", False) if STATE else False
     })
 
+@app.route("/api/config")
+def api_config():
+    """Info de modelos disponibles y de la máquina, para que el frontend
+    arme el selector de modelo y muestre el hardware."""
+    return jsonify({
+        "default_model": DEFAULT_MODEL,
+        "allowed_models": ALLOWED_MODELS,
+        "model_info": MODEL_INFO,
+        "loaded_models": list(WHISPER_MODELS.keys()),
+        "device": detectar_device(),
+        "total_ram_gb": detectar_ram_gb(),
+        "platform": sys.platform,
+    })
+
+
 @app.route("/api/status")
 def status():
     global CURRENT_PROCESS
@@ -232,8 +276,15 @@ def upload_file():
     file = request.files['audiofile']
     start_time = request.form.get('start_time')
     end_time = request.form.get('end_time')
-    language = request.form.get('language', 'en') # Default inglés
-    
+    language = request.form.get('language', 'es')  # Default español
+    task = request.form.get('task', 'transcribe')   # 'transcribe' | 'translate'
+    if task not in ("transcribe", "translate"):
+        task = "transcribe"
+    # Modelo solicitado (override por subida) o el default del servidor
+    model_size = (request.form.get('model') or DEFAULT_MODEL).strip().lower()
+    if model_size not in ALLOWED_MODELS:
+        model_size = DEFAULT_MODEL
+
     # Convertir a float si existen
     try:
         start_time = float(start_time) if start_time else None
@@ -244,16 +295,16 @@ def upload_file():
     filename = secure_filename(file.filename)
     if start_time is not None or end_time is not None:
         filename = f"part_{int(start_time or 0)}_{int(end_time or 0)}_{filename}"
-        
+
     save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     file.save(save_path)
-    
+
     if CURRENT_PROCESS and CURRENT_PROCESS.is_alive(): CURRENT_PROCESS.terminate()
-    CURRENT_PROCESS = mp.Process(target=proceso_fondo, args=(save_path, filename, STATE, start_time, end_time, language))
+    CURRENT_PROCESS = mp.Process(target=proceso_fondo, args=(save_path, filename, STATE, start_time, end_time, language, model_size, task))
     CURRENT_PROCESS.start()
     return jsonify({"success": True})
 
-def proceso_fondo(ruta_audio, filename, estado, start_time, end_time, language):
+def proceso_fondo(ruta_audio, filename, estado, start_time, end_time, language, model_size, task):
     import traceback
     def log(msg):
         with open("child_debug.log", "a") as f: f.write(f"[{time.ctime()}] {msg}\n")
@@ -279,41 +330,45 @@ def proceso_fondo(ruta_audio, filename, estado, start_time, end_time, language):
         ruta_procesable = preconvertir_audio(ruta_audio, start_time, end_time)
         ruta_wav_temp = ruta_procesable if ruta_procesable != ruta_audio else None
         
-        # Siempre usar 'tiny' — es 6x más rápido y Gemini limpia el texto después
-        model_size = "tiny"
-        
-        # 2. Transcribir
+        # 2. Transcribir con el modelo elegido (configurable por el usuario / servidor)
         estado["progress_percent"] = 20.0
-        estado["status_text"] = "Cargando modelo de IA..."
+        estado["status_text"] = f"Cargando modelo '{model_size}'..."
         modelo = cargar_modelo(model_size)
-        
+
         # LOG para depuración
-        print(f"📊 Depuración - Idioma: '{language}', Archivo: {size_mb_original:.1f}MB, Modelo: {model_size}")
-        
-        # Filtro robusto para evitar error "Unsupported language"
+        print(f"📊 Depuración - Idioma: '{language}', Tarea: '{task}', Archivo: {size_mb_original:.1f}MB, Modelo: {model_size}")
+
+        # Idioma de origen para Whisper. Vacío/None => auto-detectar.
         if not language or language.strip() == "" or language == "None":
-            lang_whisper = "en"
+            lang_whisper = None
         else:
             lang_whisper = language.strip().lower()
             if lang_whisper not in ["es", "en"]:
                 lang_whisper = None
 
-        estado["status_text"] = f"Transcribiendo ({lang_whisper or 'Auto'})..."
+        verbo = "Traduciendo" if task == "translate" else "Transcribiendo"
+        estado["status_text"] = f"{verbo} ({lang_whisper or 'Auto'}) · modelo {model_size}..."
         estado["progress_percent"] = 30.0
-        
-        # Transcripción directa
+
+        # Transcripción directa (Whisper siempre transcribe en el idioma original;
+        # la traducción a español, si se pide, la hace Gemini después en el frontend).
         resultado = modelo.transcribe(ruta_procesable, language=lang_whisper, fp16=False)
         texto = resultado["text"].strip()
         segments = resultado.get("segments", [])
-        
-        # 3. Guardar resultados
-        # Guardamos tanto el texto puro como el JSON con segmentos (para partes)
+
+        # 3. Guardar resultados.
+        # text_en = transcripción cruda original (entrada para la IA).
+        # text_es = salida editable: si es transcripción la mostramos tal cual;
+        #           si es traducción la deja vacía para que Gemini la rellene.
+        text_es_val = "" if task == "translate" else texto
         with open(os.path.join(AUDIO_DIR, base + ".json"), 'w', encoding='utf-8') as f:
             json.dump({
-                "text_es": texto if language == "es" else "",
-                "text_en": texto if language != "es" else texto,
+                "text_es": text_es_val,
+                "text_en": texto,
                 "segments": segments,
                 "language": language,
+                "task": task,
+                "model": model_size,
                 "trimmed": (start_time is not None or end_time is not None)
             }, f, ensure_ascii=False, indent=2)
             
@@ -323,6 +378,7 @@ def proceso_fondo(ruta_audio, filename, estado, start_time, end_time, language):
         estado["progress_percent"] = 100.0
         estado["completed"] = True
         estado["title"] = base  # Para auto-abrir el modal en el frontend
+        estado["task"] = task    # 'translate' => el frontend lanza Gemini automáticamente
         estado["status_text"] = "✅ ¡Listo!"
                     
     except Exception as e:
@@ -580,6 +636,88 @@ def generate_tts(title):
 def download_tts_file(filename):
     from flask import send_from_directory
     return send_from_directory(AUDIO_DIR, filename, as_attachment=True)
+
+
+PACKAGE_README = """TRANSCRIPTOR DE AUDIOS — Instalación en Mac
+============================================
+
+1. Descomprime esta carpeta donde quieras (por ejemplo, el Escritorio).
+2. Haz doble clic en "Transcriptor_Facil.command".
+   - La primera vez instala Python, FFmpeg y la IA (Whisper). Puede tardar
+     varios minutos y descargar el modelo "medium" (~1.5 GB). Ten paciencia.
+   - Si macOS bloquea el archivo: clic derecho -> Abrir, o en Terminal:
+       chmod +x Transcriptor_Facil.command
+3. Se abrira tu navegador en http://127.0.0.1:5111
+
+MODELO DE TRANSCRIPCION
+-----------------------
+Por defecto usa "medium" (muy buena calidad, ~5 GB de RAM). Puedes cambiarlo:
+- Desde la interfaz, en el selector "Modelo (calidad)" al subir un audio.
+- O de forma permanente: abre "Transcriptor_Facil.command" con un editor de
+  texto y cambia el valor de WHISPER_MODEL por: tiny / base / small / medium / large-v3
+
+NOTAS
+-----
+- Es 100% local: tus audios no salen de tu Mac.
+- Para apagarlo, cierra la ventana negra (Terminal).
+"""
+
+
+@app.route("/api/package/mac")
+def descargar_paquete_mac():
+    """Genera al vuelo un .zip con la app lista para correr en otro Mac,
+    con el modelo por defecto en 'medium'. Siempre refleja el codigo actual."""
+    import io, zipfile
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+    TOP = "TranscriptorAudios"
+
+    def leer(path):
+        with open(path, "r", encoding="utf-8") as fh:
+            return fh.read()
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        # server.py
+        z.writestr(f"{TOP}/server.py", leer(os.path.join(ROOT, "server.py")))
+
+        # run_server.sh con WHISPER_MODEL=medium por defecto (override por env)
+        run_sh = leer(os.path.join(ROOT, "run_server.sh"))
+        run_sh = run_sh.replace(
+            "python3 server.py",
+            'export WHISPER_MODEL="${WHISPER_MODEL:-medium}"\npython3 server.py'
+        )
+        zi = zipfile.ZipInfo(f"{TOP}/run_server.sh"); zi.external_attr = 0o755 << 16
+        z.writestr(zi, run_sh)
+
+        # .command que abre localhost (no la URL de la nube)
+        cmd = leer(os.path.join(ROOT, "Transcriptor_Facil.command"))
+        cmd = cmd.replace("https://transcriptor-audios.web.app", "http://127.0.0.1:5111")
+        zic = zipfile.ZipInfo(f"{TOP}/Transcriptor_Facil.command"); zic.external_attr = 0o755 << 16
+        z.writestr(zic, cmd)
+
+        # requirements.txt
+        req_path = os.path.join(ROOT, "requirements.txt")
+        if os.path.exists(req_path):
+            z.writestr(f"{TOP}/requirements.txt", leer(req_path))
+
+        # frontend/public (sin la carpeta downloads ni ocultos)
+        fe_root = os.path.join(ROOT, "frontend", "public")
+        for dirpath, dirnames, filenames in os.walk(fe_root):
+            dirnames[:] = [d for d in dirnames if d != "downloads" and not d.startswith(".")]
+            for fn in filenames:
+                if fn.startswith(".") or fn.lower().endswith(".zip"):
+                    continue
+                full = os.path.join(dirpath, fn)
+                rel = os.path.relpath(full, fe_root)
+                z.write(full, f"{TOP}/frontend/public/{rel}")
+
+        # Instrucciones
+        z.writestr(f"{TOP}/LEEME_PRIMERO.txt", PACKAGE_README)
+
+    buf.seek(0)
+    return send_file(buf, mimetype="application/zip", as_attachment=True,
+                     download_name="TranscriptorAudios-Mac.zip")
+
 
 if __name__ == "__main__":
     try:

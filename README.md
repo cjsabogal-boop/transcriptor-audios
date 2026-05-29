@@ -35,6 +35,41 @@ Al subir un audio y al adaptar con IA puedes elegir cómo transformarlo:
 
 El modo se puede cambiar después también desde el modal de detalle (re-adaptar con otro modo).
 
+## Transcribir vs. Traducir
+
+Al subir un audio eliges **qué hacer** con él:
+
+- **📝 Transcribir** (el audio ya está en español): Whisper lo transcribe en español y se muestra tal cual. **No se traduce ni adapta automáticamente** — la IA queda opcional (botón "Adaptar con Gemini").
+- **🌐 Traducir a español** (el audio está en otro idioma): Whisper transcribe en el idioma de origen y Gemini lo traduce/adapta a español automáticamente al terminar.
+
+## Modelos de transcripción (calidad)
+
+El modelo de Whisper es **configurable** por subida (selector "Modelo (calidad)") y por servidor:
+
+| Modelo | Calidad | RAM aprox. |
+|---|---|---|
+| `tiny` | Básica, muy rápido | ~1 GB |
+| `base` | Ligero | ~1 GB |
+| `small` | Buena | ~2 GB |
+| `medium` | Muy buena (recomendado) | ~5 GB |
+| `large-v3` | Máxima | ~10 GB |
+
+- **Default del servidor:** variable de entorno `WHISPER_MODEL`. Si no se define, usa `tiny`.
+  - Este Mac (8 GB) → `tiny`.
+  - El paquete descargable para la otra máquina → exporta `WHISPER_MODEL=medium` en `run_server.sh`.
+- El endpoint `GET /api/config` expone modelos disponibles, default, device (CPU/CUDA) y RAM detectada.
+
+## Llevar la app a otra máquina (paquete .zip)
+
+Desde **⚙️ Configuración → Instalador para otro Mac** se descarga un `.zip` generado al vuelo
+por el endpoint `GET /api/package/mac`. Siempre refleja el código actual e incluye:
+
+- `server.py`, `run_server.sh` (con `WHISPER_MODEL=medium`), `Transcriptor_Facil.command` (abre `localhost`),
+  `requirements.txt`, el frontend y un `LEEME_PRIMERO.txt`.
+
+En el otro Mac: descomprimir → doble clic en `Transcriptor_Facil.command` → instala todo y abre `http://127.0.0.1:5111`.
+El modelo por defecto se puede cambiar desde la interfaz o editando `WHISPER_MODEL` en `run_server.sh`.
+
 ## Login
 
 Google Sign-In con lista de emails autorizados en Firestore (colección `authorized_emails`).
