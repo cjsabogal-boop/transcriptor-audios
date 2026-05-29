@@ -728,6 +728,12 @@ Por defecto usa "medium" (muy buena calidad, ~5 GB de RAM). Puedes cambiarlo:
 - O de forma permanente: abre "Transcriptor_Facil.command" con un editor de
   texto y cambia el valor de WHISPER_MODEL por: tiny / base / small / medium / large-v3
 
+ACTUALIZAR
+----------
+No necesitas volver a descargar el paquete: abre el engranaje (Configuracion) y
+pulsa "Buscar actualizacion". Descarga la ultima version desde GitHub. Si avisa
+que reinicies, cierra la ventana negra (Terminal) y reabre "Transcriptor_Facil.command".
+
 NOTAS
 -----
 - Es 100% local: tus audios no salen de tu Mac.
