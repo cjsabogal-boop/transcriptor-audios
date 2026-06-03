@@ -263,7 +263,9 @@ function abrirSettings() {
 
     if (elUrl) elUrl.value = SETTINGS.serverUrl;
 
-    // Enlace de descarga del paquete (endpoint dinámico del servidor)
+    // Enlaces de descarga (endpoints dinámicos del servidor)
+    const dlApp = document.getElementById('link-download-app');
+    if (dlApp) dlApp.setAttribute('href', `${API_BASE}/api/package/app`);
     const dl = document.getElementById('link-download-mac');
     if (dl) dl.setAttribute('href', `${API_BASE}/api/package/mac`);
 

@@ -475,9 +475,11 @@
                     <p class="settings-hint" id="update-status" style="margin-top:8px;"></p>
                 </div>
                 <div class="settings-group" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); text-align: center;">
-                    <label class="panel-label">📂 Instalador para otro Mac</label>
-                    <p class="settings-hint">Descarga el paquete listo para correr en otro Mac (modelo <b>medium</b> por defecto, para máquinas con más RAM).</p>
-                    <a id="link-download-mac" href="#" class="btn btn-accent" style="display: inline-block; text-decoration: none; width: 100%; box-sizing: border-box;">⬇️ Descargar Transcriptor Mac (.zip)</a>
+                    <label class="panel-label">🍎 App para Mac (sin Terminal)</label>
+                    <p class="settings-hint">Descarga <b>Transcriptor.app</b> — doble clic y abre en su propia ventana (modelo <b>medium</b>). Recomendado.</p>
+                    <a id="link-download-app" href="#" class="btn btn-accent" style="display: inline-block; text-decoration: none; width: 100%; box-sizing: border-box;">⬇️ Descargar Transcriptor.app</a>
+                    <p class="settings-hint" style="margin-top:12px;">¿Prefieres la versión clásica (abre Terminal)?</p>
+                    <a id="link-download-mac" href="#" class="btn btn-ghost" style="display: inline-block; text-decoration: none; width: 100%; box-sizing: border-box;">⬇️ Paquete .command (.zip)</a>
                     <p class="settings-hint" id="server-machine-info" style="margin-top:10px; font-size:0.72rem; color:#94a3b8;"></p>
                 </div>
             </div>
@@ -513,7 +515,7 @@
     </div>
 
     <div class="toast-container" id="toast-container"></div>
-    <script src="app.js?v=2.10"></script>
+    <script src="app.js?v=2.11"></script>
     <script>
         // ─── Panel admin: gestión de emails autorizados ───
         (function() {

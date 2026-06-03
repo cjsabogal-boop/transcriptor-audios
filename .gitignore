@@ -8,6 +8,9 @@ server_crash.log
 # macOS
 .DS_Store
 
+# Ícono intermedio (se regenera con tools/make_icon.py)
+assets/icon.iconset/
+
 # Node
 node_modules/
 dist/

@@ -741,6 +741,84 @@ NOTAS
 """
 
 
+APP_README = """TRANSCRIPTOR — App para Mac (sin Terminal)
+============================================
+
+1. Descomprime este .zip → te queda "Transcriptor.app".
+2. (Recomendado) Arrastra "Transcriptor.app" a tu carpeta Aplicaciones.
+3. Haz doble clic en Transcriptor.
+   - Si macOS lo bloquea ("desarrollador no identificado"): clic derecho ->
+     Abrir -> Abrir. Solo la primera vez.
+   - La primera vez instala la IA por dentro (sin ventana negra). Puede tardar
+     varios minutos y descargar el modelo (~1.5 GB). Espera la notificacion "Listo".
+4. Se abre en su propia ventana. Listo.
+
+- Es 100% local: tus audios no salen del Mac.
+- Modelo por defecto: medium. Lo cambias en el selector "Modelo (calidad)".
+- Para actualizar: dentro de la app, engranaje -> "Buscar actualizacion".
+"""
+
+
+@app.route("/api/package/app")
+def descargar_app():
+    """Genera al vuelo un .zip con Transcriptor.app (app nativa, sin Terminal),
+    configurada con modelo medium. Siempre refleja el codigo actual."""
+    import io, zipfile
+    ROOT = os.path.dirname(os.path.abspath(__file__))
+    APP = "Transcriptor.app"
+    RES = f"{APP}/Contents/Resources/app"
+    tpl = os.path.join(ROOT, "tools", "app_template")
+    icns = os.path.join(ROOT, "assets", "icon.icns")
+
+    def leer(p):
+        with open(p, "r", encoding="utf-8") as f:
+            return f.read()
+
+    def leer_b(p):
+        with open(p, "rb") as f:
+            return f.read()
+
+    if not os.path.exists(os.path.join(tpl, "launcher.sh")) or not os.path.exists(icns):
+        return jsonify({"success": False, "msg": "Faltan plantillas de la app en este servidor."}), 500
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        # Estructura del bundle
+        z.writestr(f"{APP}/Contents/Info.plist", leer(os.path.join(tpl, "Info.plist")))
+        zl = zipfile.ZipInfo(f"{APP}/Contents/MacOS/Transcriptor"); zl.external_attr = 0o755 << 16
+        z.writestr(zl, leer(os.path.join(tpl, "launcher.sh")))
+        z.writestr(f"{APP}/Contents/Resources/icon.icns", leer_b(icns))
+
+        # Codigo de la app
+        z.writestr(f"{RES}/server.py", leer(os.path.join(ROOT, "server.py")))
+        zr = zipfile.ZipInfo(f"{RES}/run_server.sh"); zr.external_attr = 0o755 << 16
+        z.writestr(zr, leer(os.path.join(ROOT, "run_server.sh")))
+        req = os.path.join(ROOT, "requirements.txt")
+        if os.path.exists(req):
+            z.writestr(f"{RES}/requirements.txt", leer(req))
+
+        fe_root = os.path.join(ROOT, "frontend", "public")
+        for dirpath, dirnames, filenames in os.walk(fe_root):
+            dirnames[:] = [d for d in dirnames if d != "downloads" and not d.startswith(".")]
+            for fn in filenames:
+                if fn.startswith(".") or fn.lower().endswith(".zip"):
+                    continue
+                full = os.path.join(dirpath, fn)
+                rel = os.path.relpath(full, fe_root)
+                z.write(full, f"{RES}/frontend/public/{rel}")
+
+        # Plantillas + icono dentro (para poder regenerar la app desde dentro)
+        z.writestr(f"{RES}/tools/app_template/Info.plist", leer(os.path.join(tpl, "Info.plist")))
+        z.writestr(f"{RES}/tools/app_template/launcher.sh", leer(os.path.join(tpl, "launcher.sh")))
+        z.writestr(f"{RES}/assets/icon.icns", leer_b(icns))
+
+        z.writestr("LEEME_PRIMERO.txt", APP_README)
+
+    buf.seek(0)
+    return send_file(buf, mimetype="application/zip", as_attachment=True,
+                     download_name="Transcriptor-App-Mac.zip")
+
+
 @app.route("/api/package/mac")
 def descargar_paquete_mac():
     """Genera al vuelo un .zip con la app lista para correr en otro Mac,
