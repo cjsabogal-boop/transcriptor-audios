@@ -15,7 +15,7 @@ mkdir -p "$APP/Contents/Resources/app"
 # ── Código de la app (server + frontend) ──
 cp "$ROOT/server.py" "$APP/Contents/Resources/app/"
 cp "$ROOT/run_server.sh" "$APP/Contents/Resources/app/"
-cp "$ROOT/menubar.py" "$APP/Contents/Resources/app/" 2>/dev/null || true
+cp "$ROOT/macapp.py" "$APP/Contents/Resources/app/" 2>/dev/null || true
 cp "$ROOT/requirements.txt" "$APP/Contents/Resources/app/" 2>/dev/null || true
 mkdir -p "$APP/Contents/Resources/app/frontend"
 cp -R "$ROOT/frontend/public" "$APP/Contents/Resources/app/frontend/public"
@@ -28,7 +28,7 @@ cp "$ROOT/tools/app_template/Info.plist" "$APP/Contents/Resources/app/tools/app_
 cp "$ROOT/tools/app_template/launcher.sh" "$APP/Contents/Resources/app/tools/app_template/"
 mkdir -p "$APP/Contents/Resources/app/assets"
 cp "$ROOT/assets/icon.icns" "$APP/Contents/Resources/app/assets/icon.icns"
-cp "$ROOT/assets/menubar_icon.png" "$APP/Contents/Resources/app/assets/menubar_icon.png" 2>/dev/null || true
+cp "$ROOT/assets/icon_1024.png" "$APP/Contents/Resources/app/assets/icon_1024.png" 2>/dev/null || true
 
 # ── Ícono ──
 cp "$ROOT/assets/icon.icns" "$APP/Contents/Resources/icon.icns"
