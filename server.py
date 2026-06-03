@@ -107,6 +107,30 @@ os.makedirs(AUDIO_DIR, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = AUDIO_DIR
 SERVER_START_TIME = time.time()
 
+# ── Apagado automático al cerrar la ventana (libera la RAM/modelo) ──
+# Pensado para Macs con poca RAM: si no hay ventana abierta, el servidor se apaga.
+AUTO_SHUTDOWN = os.environ.get("AUTO_SHUTDOWN", "1") != "0"
+CLOSE_GRACE = 6        # seg tras avisar de cierre (sin reabrir) -> apagar
+BACKSTOP_GRACE = 120   # seg sin señales de la ventana -> apagar (respaldo)
+LAST_SEEN = time.time()
+SHUTDOWN_AT = None
+
+
+def _watchdog():
+    """Apaga el servidor cuando la ventana se cierra (nunca durante una transcripción)."""
+    global SHUTDOWN_AT
+    while True:
+        time.sleep(2)
+        try:
+            if STATE and STATE.get("is_processing"):
+                continue  # jamás apagar a mitad de un audio
+            now = time.time()
+            if (SHUTDOWN_AT and now >= SHUTDOWN_AT) or (now - LAST_SEEN > BACKSTOP_GRACE):
+                print("🛑 Ventana cerrada: apagando para liberar memoria.")
+                os._exit(0)
+        except Exception:
+            pass
+
 # ── Configuración de modelos Whisper ──
 # De más rápido/ligero a más preciso/pesado.
 ALLOWED_MODELS = ["tiny", "base", "small", "medium", "large-v3"]
@@ -240,12 +264,26 @@ def check_dependencies():
 
 @app.route("/api/health")
 def health():
+    # Cada health-check de la ventana cuenta como "latido": mantiene vivo el server
+    # y cancela cualquier apagado pendiente (p. ej. si fue solo un recargar la página).
+    global LAST_SEEN, SHUTDOWN_AT
+    LAST_SEEN = time.time()
+    SHUTDOWN_AT = None
     return jsonify({
         "status": "ok",
         "uptime": round(time.time() - SERVER_START_TIME),
         "needs_install": check_dependencies(),
         "is_processing": STATE.get("is_processing", False) if STATE else False
     })
+
+
+@app.route("/api/closing", methods=["POST", "GET"])
+def api_closing():
+    """La ventana avisa que se está cerrando (navigator.sendBeacon). Agenda el
+    apagado; si fue un recargar, el próximo /api/health lo cancela."""
+    global SHUTDOWN_AT
+    SHUTDOWN_AT = time.time() + CLOSE_GRACE
+    return ("", 204)
 
 @app.route("/api/config")
 def api_config():
@@ -935,6 +973,12 @@ if __name__ == "__main__":
     })
 
     limpiar_temporales()
+
+    # Vigilante: apaga el server cuando se cierra la ventana (libera memoria)
+    if AUTO_SHUTDOWN:
+        threading.Thread(target=_watchdog, daemon=True).start()
+        print("🛡️  Apagado automático al cerrar la ventana: ACTIVADO")
+
     print("🚀 Servidor listo en http://127.0.0.1:5111")
     # Cambiado a 0.0.0.0 para acceso desde otros dispositivos y estabilidad
     app.run(host="0.0.0.0", port=5111, debug=False, threaded=True)

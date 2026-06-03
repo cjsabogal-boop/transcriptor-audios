@@ -46,6 +46,12 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(checkHealth, 5000);
 });
 
+// Al cerrar la ventana, avisar al servidor para que se apague y libere la RAM/modelo.
+// Si fue solo un "recargar", el siguiente latido (/api/health) cancela el apagado.
+window.addEventListener('pagehide', () => {
+    try { navigator.sendBeacon(`${API_BASE}/api/closing`); } catch (e) {}
+});
+
 // ── Cargar configuración del servidor (modelos, hardware) ──
 async function cargarConfig() {
     try {
