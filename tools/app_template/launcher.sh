@@ -30,7 +30,7 @@ fi
 notify(){ /usr/bin/osascript -e "display notification \"$1\" with title \"Transcriptor\"" >/dev/null 2>&1; }
 open_window(){
   if [ -d "/Applications/Google Chrome.app" ]; then
-    /usr/bin/open -na "Google Chrome" --args --app="$URL" --user-data-dir="$HOME/Library/Application Support/Transcriptor/win" >/dev/null 2>&1
+    /usr/bin/open -na "Google Chrome" --args --app="$URL" >/dev/null 2>&1
   else
     /usr/bin/open "$URL"
   fi

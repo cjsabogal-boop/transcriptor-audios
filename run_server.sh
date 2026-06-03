@@ -15,6 +15,17 @@ export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/us
 echo "=====================================" >> "$LOG"
 echo "INICIO: $(date)" >> "$LOG"
 
+# ── Arranque rápido: si ya se instaló todo, no re-verificar dependencias ──
+READY_MARK="$HOME/.config/transcriptor/ready"
+if [ -f "$READY_MARK" ]; then
+    echo "✅ Listo (arranque rápido)"
+    lsof -t -i tcp:5111 | xargs kill -9 2>/dev/null
+    cd "$DIR"
+    export PYTORCH_ENABLE_MPS_FALLBACK=1
+    export PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
+    exec python3 server.py >> "$LOG" 2>&1
+fi
+
 # ── 1. Instalar Python3 si no existe ──
 if ! command -v python3 &> /dev/null; then
     echo "⚙️  Python3 no encontrado. Intentando instalar..."
@@ -143,6 +154,9 @@ if ! python3 -c "import faster_whisper" &> /dev/null; then
 fi
 echo "✅ Motor faster-whisper OK" >> "$LOG"
 echo "✅ Motor de IA listo"
+
+# Marca de "todo instalado" para acelerar los próximos arranques
+mkdir -p "$(dirname "$READY_MARK")" 2>/dev/null && touch "$READY_MARK" 2>/dev/null
 
 # ── 6. Matar cualquier instancia anterior del servidor ──
 lsof -t -i tcp:5111 | xargs kill -9 2>/dev/null

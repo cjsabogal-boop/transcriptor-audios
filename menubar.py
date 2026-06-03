@@ -33,13 +33,11 @@ def server_up():
 
 
 def open_window():
+    # Abre una ventana de app reutilizando el Chrome que ya está abierto (rápido,
+    # sin arrancar un Chrome en frío ni perfiles aparte que se acumulan).
     chrome = "/Applications/Google Chrome.app"
     if os.path.isdir(chrome):
-        subprocess.Popen([
-            "/usr/bin/open", "-na", "Google Chrome", "--args",
-            "--app=" + URL,
-            "--user-data-dir=" + os.path.expanduser("~/Library/Application Support/Transcriptor/win"),
-        ])
+        subprocess.Popen(["/usr/bin/open", "-na", "Google Chrome", "--args", "--app=" + URL])
     else:
         subprocess.Popen(["/usr/bin/open", URL])
 
