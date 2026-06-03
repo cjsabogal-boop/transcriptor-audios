@@ -44,3 +44,20 @@ d.rounded_rectangle([(S - 250, S - 150), (S - 110, S - 116)], radius=16, fill=LI
 png = os.path.join(OUT, "icon_1024.png")
 img.save(png)
 print("Ícono generado:", png)
+
+# ── Ícono de barra de menú (template: negro + alpha; macOS lo tiñe) ──
+M = 44
+mb = Image.new("RGBA", (M, M), (0, 0, 0, 0))
+md = ImageDraw.Draw(mb)
+mcx = M // 2
+BLACK = (0, 0, 0, 255)
+# cuerpo
+md.rounded_rectangle([(mcx - 7, 7), (mcx + 7, 27)], radius=7, fill=BLACK)
+# cradle
+md.arc([(mcx - 12, 18), (mcx + 12, 33)], start=0, end=180, fill=BLACK, width=3)
+# soporte + base
+md.line([(mcx, 33), (mcx, 38)], fill=BLACK, width=3)
+md.line([(mcx - 7, 38), (mcx + 7, 38)], fill=BLACK, width=3)
+mbpng = os.path.join(OUT, "menubar_icon.png")
+mb.save(mbpng)
+print("Ícono de barra de menú generado:", mbpng)

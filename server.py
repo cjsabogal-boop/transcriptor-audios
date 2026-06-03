@@ -831,6 +831,12 @@ def descargar_app():
         z.writestr(f"{RES}/server.py", leer(os.path.join(ROOT, "server.py")))
         zr = zipfile.ZipInfo(f"{RES}/run_server.sh"); zr.external_attr = 0o755 << 16
         z.writestr(zr, leer(os.path.join(ROOT, "run_server.sh")))
+        mb = os.path.join(ROOT, "menubar.py")
+        if os.path.exists(mb):
+            z.writestr(f"{RES}/menubar.py", leer(mb))
+        mbicon = os.path.join(ROOT, "assets", "menubar_icon.png")
+        if os.path.exists(mbicon):
+            z.writestr(f"{RES}/assets/menubar_icon.png", leer_b(mbicon))
         req = os.path.join(ROOT, "requirements.txt")
         if os.path.exists(req):
             z.writestr(f"{RES}/requirements.txt", leer(req))
