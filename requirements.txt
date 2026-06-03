@@ -8,7 +8,6 @@ edge-tts
 google-generativeai
 python-dotenv
 faster-whisper
-pyobjc-framework-Cocoa  # app nativa de Dock (solo macOS)
 # Respaldo opcional (motor antiguo, requiere PyTorch ~pesado). No necesario si hay faster-whisper:
 # openai-whisper
 # torch

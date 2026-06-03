@@ -831,12 +831,6 @@ def descargar_app():
         z.writestr(f"{RES}/server.py", leer(os.path.join(ROOT, "server.py")))
         zr = zipfile.ZipInfo(f"{RES}/run_server.sh"); zr.external_attr = 0o755 << 16
         z.writestr(zr, leer(os.path.join(ROOT, "run_server.sh")))
-        ma = os.path.join(ROOT, "macapp.py")
-        if os.path.exists(ma):
-            z.writestr(f"{RES}/macapp.py", leer(ma))
-        png = os.path.join(ROOT, "assets", "icon_1024.png")
-        if os.path.exists(png):
-            z.writestr(f"{RES}/assets/icon_1024.png", leer_b(png))
         req = os.path.join(ROOT, "requirements.txt")
         if os.path.exists(req):
             z.writestr(f"{RES}/requirements.txt", leer(req))

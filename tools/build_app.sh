@@ -15,7 +15,6 @@ mkdir -p "$APP/Contents/Resources/app"
 # ── Código de la app (server + frontend) ──
 cp "$ROOT/server.py" "$APP/Contents/Resources/app/"
 cp "$ROOT/run_server.sh" "$APP/Contents/Resources/app/"
-cp "$ROOT/macapp.py" "$APP/Contents/Resources/app/" 2>/dev/null || true
 cp "$ROOT/requirements.txt" "$APP/Contents/Resources/app/" 2>/dev/null || true
 mkdir -p "$APP/Contents/Resources/app/frontend"
 cp -R "$ROOT/frontend/public" "$APP/Contents/Resources/app/frontend/public"
