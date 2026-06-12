@@ -26,6 +26,18 @@ Pensada para uso personal (Carlos) y compartible con su hermano. Marca: **DGITAL
 - 100% local, gratis, sin API keys, offline (salvo la traducción que usa Google Translate libre).
 
 ## Funcionalidades implementadas
+- **App 100% nativa (Swift + WKWebView):** ventana propia (no Chrome), puntito en el Dock,
+  menú nativo (⌘Q/⌘W/⌘C/⌘V), progreso de instalación en vivo, reintento si el server tarda.
+  Fuente: `tools/native/main.swift` · build: `tools/build_native_app.sh <dest> [modelo]`.
+- **Subtítulos `.srt`/`.vtt`** desde los timestamps de Whisper (menú ⬇️ Exportar del modal).
+- **Exportar a TXT / Word / PDF** (python-docx, fpdf2).
+- **Buscador** en TODAS las transcripciones (campo sobre la lista, busca dentro del texto).
+- **Transcribir desde link** (YouTube etc., con yt-dlp). Campo "pega un link" + botón.
+- **Grabar con el micrófono** (botón 🎙️ Grabar; pide permiso de mic la 1ª vez).
+- **Cola de varios audios** (arrastra varios; se procesan uno tras otro).
+- **IA local con Ollama (opcional):** si Ollama corre (`ollama serve` + un modelo), aparece el
+  panel ✨ IA local en el modal: Resumen, Título (con renombrar), Tareas, Post redes, Blog,
+  Devocional y chat con el audio. Si no está instalado, el panel se oculta solo.
 - **Transcripción** con faster-whisper. Modelos: `tiny/base/small/medium/large-v3`.
   - Default del servidor por env `WHISPER_MODEL`. Este Mac (M1 8GB) → `small`. Paquete/M4 → `medium`.
   - Selector de modelo y de idioma en la pantalla de subida. `/api/config` expone modelos/hardware.
