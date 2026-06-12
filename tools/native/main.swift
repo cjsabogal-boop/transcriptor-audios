@@ -110,6 +110,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
                     DispatchQueue.main.async { self.loadApp() }
                     return
                 }
+                // Mostrar el último mensaje de progreso del instalador
+                if let msg = self.lastProgressLine() {
+                    DispatchQueue.main.async { self.loadingLabel.stringValue = msg }
+                }
                 Thread.sleep(forTimeInterval: 1)
             }
             DispatchQueue.main.async {
@@ -118,11 +122,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
         }
     }
 
+    // Lee el último mensaje útil del log (las líneas con ✅/⚙️/⏳/🚀 del instalador)
+    func lastProgressLine() -> String? {
+        let log = NSHomeDirectory() + "/Library/Logs/Transcriptor.log"
+        guard let data = FileManager.default.contents(atPath: log),
+              let text = String(data: data, encoding: .utf8) else { return nil }
+        let interesting = text.split(separator: "\n").reversed().first { line in
+            line.contains("✅") || line.contains("⚙️") || line.contains("⏳")
+                || line.contains("🚀") || line.contains("Instalando") || line.contains("Descargando")
+        }
+        guard let line = interesting else { return "Preparando todo la primera vez…" }
+        return String(line).trimmingCharacters(in: .whitespaces)
+    }
+
     func loadApp() {
         loadingLabel.isHidden = true
         if let url = URL(string: SERVER_URL) {
-            webView.load(URLRequest(url: url))
+            var req = URLRequest(url: url)
+            req.cachePolicy = .reloadIgnoringLocalCacheData
+            webView.load(req)
         }
+    }
+
+    // Si la carga falla (servidor reiniciándose), reintentar — evita la ventana en negro
+    func retryLoadSoon() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            guard let self = self else { return }
+            if self.pingServer() { self.loadApp() }
+            else { self.retryLoadSoon() }
+        }
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        retryLoadSoon()
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        retryLoadSoon()
     }
 
     func showError(_ msg: String) {

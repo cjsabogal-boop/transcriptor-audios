@@ -130,14 +130,14 @@ fi
 echo "✅ Flask OK" >> "$LOG"
 echo "✅ Servidor web listo"
 
-# ── 4. Instalar dependencias de red, traducción, TTS e IA Nube ──
-if ! python3 -c "import requests" &> /dev/null || ! python3 -c "import deep_translator" &> /dev/null || ! python3 -c "import edge_tts" &> /dev/null || ! python3 -c "import google.generativeai" &> /dev/null; then
-    echo "⚙️  Instalando módulos de red, traducción, voz e inteligencia avanzada..."
-    echo "⚙️ Instalando requests + deep-translator + edge-tts + google-generativeai + python-dotenv..." >> "$LOG"
-    python3 -m pip install requests deep-translator edge-tts google-generativeai python-dotenv --break-system-packages >> "$LOG" 2>&1 || \
-    python3 -m pip install requests deep-translator edge-tts google-generativeai python-dotenv >> "$LOG" 2>&1
+# ── 4. Instalar dependencias de red y traducción ──
+if ! python3 -c "import requests" &> /dev/null || ! python3 -c "import deep_translator" &> /dev/null; then
+    echo "⚙️  Instalando módulos de red y traducción..."
+    echo "⚙️ Instalando requests + deep-translator + python-dotenv..." >> "$LOG"
+    python3 -m pip install requests deep-translator python-dotenv --break-system-packages >> "$LOG" 2>&1 || \
+    python3 -m pip install requests deep-translator python-dotenv >> "$LOG" 2>&1
 fi
-echo "✅ Red + Traducción + TTS + Gemini OK" >> "$LOG"
+echo "✅ Red + Traducción OK" >> "$LOG"
 echo "✅ Módulos listos"
 
 # ── 5. Instalar el motor de transcripción (faster-whisper) ──
