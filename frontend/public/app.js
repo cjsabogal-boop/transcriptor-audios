@@ -40,9 +40,13 @@ let APP_CONFIG = null;
 // ── Initialization ──
 document.addEventListener('DOMContentLoaded', () => {
     setupUpload();
+    setupUrl();
+    setupRecord();
+    setupSearch();
     cargarConfig();
     checkHealth();
     cargarTranscripciones();
+    checkOllama();
     setInterval(checkHealth, 5000);
 });
 
@@ -123,19 +127,48 @@ function setupUpload() {
     zone.addEventListener('drop', (e) => {
         e.preventDefault();
         zone.classList.remove('drag-over');
-        if (e.dataTransfer.files.length > 0) subirArchivo(e.dataTransfer.files[0]);
+        if (e.dataTransfer.files.length > 0) encolarArchivos(e.dataTransfer.files);
     });
 
     input.addEventListener('change', () => {
-        if (input.files.length > 0) subirArchivo(input.files[0]);
+        if (input.files.length > 0) encolarArchivos(input.files);
         input.value = '';
     });
 }
 
+// ── Cola de archivos (varios audios, uno tras otro) ──
+const UPLOAD_QUEUE = [];
+
+function actualizarEstadoCola() {
+    const el = document.getElementById('queue-status');
+    if (!el) return;
+    el.textContent = UPLOAD_QUEUE.length > 0
+        ? `📦 En cola: ${UPLOAD_QUEUE.length} audio(s) más`
+        : '';
+}
+
+function encolarArchivos(fileList) {
+    const files = Array.from(fileList);
+    if (files.length === 0) return;
+    UPLOAD_QUEUE.push(...files);
+    if (files.length > 1 || isProcessing) {
+        showToast('info', `${files.length} audio(s) agregados a la cola.`);
+    }
+    actualizarEstadoCola();
+    procesarSiguienteDeCola();
+}
+
+function procesarSiguienteDeCola() {
+    if (isProcessing || UPLOAD_QUEUE.length === 0) return;
+    const file = UPLOAD_QUEUE.shift();
+    actualizarEstadoCola();
+    subirArchivo(file);
+}
+
 // ── Subir Archivo ──
 async function subirArchivo(file) {
-    if (isProcessing) { showToast('error', 'Ya hay un proceso en marcha.'); return; }
-    
+    if (isProcessing) { UPLOAD_QUEUE.unshift(file); actualizarEstadoCola(); return; }
+
     try {
         const formData = new FormData();
         formData.append('audiofile', file);
@@ -149,7 +182,7 @@ async function subirArchivo(file) {
             formData.append('model', elements.modelSelect.value);
         }
 
-        showToast('info', 'Subiendo audio…');
+        showToast('info', `Subiendo: ${file.name}`);
         const res = await fetch(`${API_BASE}/api/upload`, { method: 'POST', body: formData });
         const data = await res.json();
 
@@ -157,10 +190,131 @@ async function subirArchivo(file) {
             iniciarPollingProgreso();
         } else {
             showToast('error', data.msg || 'Error al subir.');
+            procesarSiguienteDeCola();
         }
     } catch (err) {
         showToast('error', 'No se pudo conectar al servidor local.');
     }
+}
+
+// ── Transcribir desde un link (YouTube, etc.) ──
+function setupUrl() {
+    const btn = document.getElementById('btn-url');
+    const input = document.getElementById('input-url');
+    if (!btn || !input) return;
+    const lanzar = async () => {
+        const url = input.value.trim();
+        if (!url) { showToast('error', 'Pega primero un link.'); return; }
+        if (isProcessing) { showToast('error', 'Espera a que termine el audio actual.'); return; }
+        btn.disabled = true;
+        try {
+            const res = await fetch(`${API_BASE}/api/upload_url`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    url,
+                    language: elements.languageSelect ? elements.languageSelect.value : 'es',
+                    model: elements.modelSelect ? elements.modelSelect.value : ''
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                input.value = '';
+                showToast('info', 'Descargando el audio del link…');
+                iniciarPollingProgreso();
+            } else {
+                showToast('error', data.msg || 'No se pudo procesar el link.');
+            }
+        } catch (e) {
+            showToast('error', 'Sin conexión con el servidor.');
+        } finally {
+            btn.disabled = false;
+        }
+    };
+    btn.addEventListener('click', lanzar);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') lanzar(); });
+}
+
+// ── Grabar desde el micrófono ──
+let mediaRecorder = null;
+let recordChunks = [];
+
+function setupRecord() {
+    const btn = document.getElementById('btn-record');
+    if (!btn) return;
+    btn.addEventListener('click', async () => {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+            return;
+        }
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            recordChunks = [];
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordChunks.push(e.data); };
+            mediaRecorder.onstop = () => {
+                stream.getTracks().forEach(t => t.stop());
+                btn.textContent = '🎙️ Grabar';
+                btn.classList.remove('btn-danger');
+                const blob = new Blob(recordChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+                if (blob.size < 1000) { showToast('error', 'Grabación demasiado corta.'); return; }
+                const stamp = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '-');
+                const file = new File([blob], `Grabacion_${stamp}.webm`, { type: blob.type });
+                encolarArchivos([file]);
+            };
+            mediaRecorder.start();
+            btn.textContent = '⏹ Detener';
+            btn.classList.add('btn-danger');
+            showToast('info', 'Grabando… pulsa ⏹ para terminar.');
+        } catch (e) {
+            showToast('error', 'No hay permiso de micrófono. Revisa Ajustes del sistema → Privacidad → Micrófono.');
+        }
+    });
+}
+
+// ── Buscador en todas las transcripciones ──
+function setupSearch() {
+    const input = document.getElementById('input-search');
+    if (!input) return;
+    let timer = null;
+    input.addEventListener('input', () => {
+        clearTimeout(timer);
+        timer = setTimeout(async () => {
+            const q = input.value.trim();
+            if (!q) { cargarTranscripciones(); return; }
+            try {
+                const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(q)}`);
+                const resultados = await res.json();
+                renderResultadosBusqueda(resultados, q);
+            } catch (e) { /* servidor caído: no romper la UI */ }
+        }, 300);
+    });
+}
+
+function renderResultadosBusqueda(resultados, q) {
+    const list = elements.transcriptionsList;
+    if (!resultados.length) {
+        list.innerHTML = `<div class="empty-state">Sin resultados para “${escapeHtmlApp(q)}”.</div>`;
+        return;
+    }
+    list.innerHTML = '';
+    resultados.forEach(r => {
+        const card = document.createElement('div');
+        card.className = 'transcription-card';
+        card.innerHTML = `
+            <div class="card-content">
+                <div class="card-title"></div>
+                <div class="card-meta search-snippet"></div>
+            </div>`;
+        card.querySelector('.card-title').textContent = r.title;
+        card.querySelector('.search-snippet').textContent = r.snippet || '';
+        card.querySelector('.card-content').addEventListener('click', () => abrirModal(r.title));
+        list.appendChild(card);
+    });
+}
+
+function escapeHtmlApp(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 // ── Health Check ──
@@ -213,12 +367,14 @@ function iniciarPollingProgreso() {
                 clearInterval(interval);
                 isProcessing = false;
                 showToast('success', '¡Audio listo!');
-                setTimeout(async () => { 
-                    elements.progressSection.style.display = 'none'; 
-                    await cargarTranscripciones(); 
-                    // Abrir el resultado con la transcripción lista.
-                    // La traducción es opcional (botón "Traducir" en el modal).
-                    if (data.title) {
+                setTimeout(async () => {
+                    elements.progressSection.style.display = 'none';
+                    await cargarTranscripciones();
+                    // Si hay más audios en cola, seguir con el próximo y no
+                    // interrumpir con el modal; si era el último, abrir el resultado.
+                    if (UPLOAD_QUEUE.length > 0) {
+                        procesarSiguienteDeCola();
+                    } else if (data.title) {
                         abrirModal(data.title);
                     }
                 }, 2000);
@@ -364,6 +520,12 @@ async function abrirModal(title) {
         }
     } catch (err) { }
 
+    // Limpiar el panel de IA local del audio anterior
+    const ollamaOut = document.getElementById('ollama-result');
+    if (ollamaOut) { ollamaOut.value = ''; ollamaOut.style.display = 'none'; }
+    const chatInput = document.getElementById('ollama-chat-input');
+    if (chatInput) chatInput.value = '';
+
     elements.modalOverlay.style.display = 'flex';
 }
 
@@ -441,6 +603,119 @@ async function borrarTranscripcion(event, title) {
         showToast('error', 'Error al borrar');
     }
 }
+
+// ── Exportar (txt/docx/pdf) y subtítulos (srt/vtt) ──
+function toggleExportMenu(e) {
+    if (e) e.stopPropagation();
+    const menu = document.getElementById('export-menu');
+    if (menu) menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('export-menu');
+    if (menu && menu.style.display !== 'none' && !e.target.closest('#export-menu, #btn-export-menu')) {
+        menu.style.display = 'none';
+    }
+});
+
+function exportar(fmt) {
+    if (!currentTitle) return;
+    toggleExportMenu();
+    window.location.href = `${API_BASE}/api/audios/${encodeURIComponent(currentTitle)}/export?fmt=${fmt}`;
+}
+
+async function descargarSubs(fmt) {
+    if (!currentTitle) return;
+    toggleExportMenu();
+    // Verificar primero que existan timestamps (si no, avisar bonito)
+    try {
+        const res = await fetch(`${API_BASE}/api/audios/${encodeURIComponent(currentTitle)}/subtitles?fmt=${fmt}`);
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            showToast('error', data.msg || 'No se pudieron generar los subtítulos.');
+            return;
+        }
+        const blob = await res.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${currentTitle}.${fmt}`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    } catch (e) {
+        showToast('error', 'Sin conexión con el servidor.');
+    }
+}
+
+// ── IA local (Ollama) ──
+let OLLAMA_AVAILABLE = false;
+
+async function checkOllama() {
+    try {
+        const res = await fetch(`${API_BASE}/api/ollama/status`, { cache: 'no-store' });
+        const data = await res.json();
+        OLLAMA_AVAILABLE = !!(data.available && data.models && data.models.length);
+        const panel = document.getElementById('ollama-panel');
+        if (panel) panel.style.display = OLLAMA_AVAILABLE ? '' : 'none';
+        const label = document.getElementById('ollama-model-label');
+        if (label && OLLAMA_AVAILABLE) label.textContent = `(${data.models[0]})`;
+    } catch (e) { OLLAMA_AVAILABLE = false; }
+}
+
+async function correrOllama(accion, pregunta) {
+    const out = document.getElementById('ollama-result');
+    if (!currentTitle || !out) return;
+    out.style.display = '';
+    out.value = '✨ Pensando… (la primera vez puede tardar mientras carga el modelo)';
+    try {
+        const res = await fetch(`${API_BASE}/api/ollama/run`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: accion, title: currentTitle, question: pregunta || '' })
+        });
+        const data = await res.json();
+        if (data.success) {
+            out.value = data.text;
+            // El título generado se ofrece aplicar de una
+            if (accion === 'titulo' && data.text && data.text.length < 120) {
+                if (confirm(`¿Renombrar el audio a:\n"${data.text}"?`)) {
+                    const res2 = await fetch(`${API_BASE}/api/audios/${encodeURIComponent(currentTitle)}/rename`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ new_title: data.text })
+                    });
+                    const d2 = await res2.json();
+                    if (d2.success) {
+                        showToast('success', 'Renombrado.');
+                        currentTitle = data.text;
+                        elements.modalTitle.textContent = data.text;
+                        cargarTranscripciones();
+                    }
+                }
+            }
+        } else {
+            out.value = `⚠️ ${data.msg || 'La IA local no respondió.'}`;
+        }
+    } catch (e) {
+        out.value = '⚠️ Sin conexión con la IA local.';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.btn-ia').forEach(btn => {
+        btn.addEventListener('click', () => correrOllama(btn.dataset.accion));
+    });
+    const chatBtn = document.getElementById('btn-ollama-chat');
+    const chatInput = document.getElementById('ollama-chat-input');
+    if (chatBtn && chatInput) {
+        const preguntar = () => {
+            const q = chatInput.value.trim();
+            if (!q) { showToast('error', 'Escribe una pregunta.'); return; }
+            correrOllama('chat', q);
+        };
+        chatBtn.addEventListener('click', preguntar);
+        chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') preguntar(); });
+    }
+});
 
 async function renombrarTranscripcion(event, title) {
     if (event) event.stopPropagation();

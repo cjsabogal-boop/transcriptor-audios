@@ -130,12 +130,12 @@ fi
 echo "✅ Flask OK" >> "$LOG"
 echo "✅ Servidor web listo"
 
-# ── 4. Instalar dependencias de red y traducción ──
-if ! python3 -c "import requests" &> /dev/null || ! python3 -c "import deep_translator" &> /dev/null; then
-    echo "⚙️  Instalando módulos de red y traducción..."
-    echo "⚙️ Instalando requests + deep-translator + python-dotenv..." >> "$LOG"
-    python3 -m pip install requests deep-translator python-dotenv --break-system-packages >> "$LOG" 2>&1 || \
-    python3 -m pip install requests deep-translator python-dotenv >> "$LOG" 2>&1
+# ── 4. Instalar dependencias de red, traducción y herramientas ──
+if ! python3 -c "import requests" &> /dev/null || ! python3 -c "import deep_translator" &> /dev/null || ! python3 -c "import docx" &> /dev/null || ! python3 -c "import fpdf" &> /dev/null || ! python3 -c "import yt_dlp" &> /dev/null; then
+    echo "⚙️  Instalando módulos de red, traducción y exportación..."
+    echo "⚙️ Instalando requests + deep-translator + python-dotenv + python-docx + fpdf2 + yt-dlp..." >> "$LOG"
+    python3 -m pip install requests deep-translator python-dotenv python-docx fpdf2 yt-dlp --break-system-packages >> "$LOG" 2>&1 || \
+    python3 -m pip install requests deep-translator python-dotenv python-docx fpdf2 yt-dlp >> "$LOG" 2>&1
 fi
 echo "✅ Red + Traducción OK" >> "$LOG"
 echo "✅ Módulos listos"

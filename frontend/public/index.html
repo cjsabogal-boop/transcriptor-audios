@@ -398,15 +398,21 @@
                                 <p class="settings-hint" id="model-hint" style="margin-top:6px;"></p>
                             </div>
                         </div>
-                        <p class="upload-subtitle">Arrastra el audio o haz clic para seleccionarlo</p>
+                        <p class="upload-subtitle">Arrastra audios (varios a la vez) o haz clic para seleccionarlos</p>
                         <div class="upload-hints">
                             <span class="hint-tag">Audio o video (MP3, M4A, WAV, MP4…)</span>
                             <span class="hint-tag">100% local</span>
                             <span class="hint-tag">Traducción opcional 🌐</span>
                         </div>
+                        <div class="settings-group" style="margin: 18px auto 0; max-width: 480px; display:flex; gap: 8px; align-items:center;">
+                            <input type="url" id="input-url" class="panel-textarea" style="height: 40px; min-height: 40px; padding: 0 14px; flex:1;" placeholder="…o pega un link (YouTube, etc.)">
+                            <button class="btn btn-gemini" id="btn-url" style="white-space:nowrap;">🔗 Transcribir link</button>
+                            <button class="btn btn-accent" id="btn-record" title="Grabar con el micrófono">🎙️ Grabar</button>
+                        </div>
+                        <p class="settings-hint" id="queue-status" style="margin-top:10px;"></p>
                     </div>
                 </div>
-                <input type="file" id="file-input" accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.ogg,.oga,.opus,.flac,.aiff,.aif,.wma,.amr,.mp4,.mov,.m4v,.webm,.3gp" style="display:none;">
+                <input type="file" id="file-input" multiple accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.ogg,.oga,.opus,.flac,.aiff,.aif,.wma,.amr,.mp4,.mov,.m4v,.webm,.3gp" style="display:none;">
             </section>
 
             <section class="progress-section" id="progress-section" style="display:none;">
@@ -421,6 +427,7 @@
 
             <section class="transcriptions-section">
                 <h2 class="section-title">🎙️ Audios Procesados</h2>
+                <input type="search" id="input-search" class="panel-textarea" style="height: 42px; min-height: 42px; padding: 0 15px; width: 100%; box-sizing: border-box; margin-bottom: 14px;" placeholder="🔎 Buscar en todas las transcripciones…">
                 <div class="transcriptions-list" id="transcriptions-list">
                     <div class="empty-state">No hay audios aún.</div>
                 </div>
@@ -444,11 +451,36 @@
                     <div class="panel-label">📝 Transcripción</div>
                     <textarea class="panel-textarea" id="textarea-es" placeholder="Aquí aparece la transcripción…"></textarea>
                 </div>
+                <!-- IA local (Ollama) — solo visible si está disponible -->
+                <div class="panel" id="ollama-panel" style="display:none; margin-top: 14px;">
+                    <div class="panel-label">✨ IA local <span id="ollama-model-label" style="opacity:.6; font-weight:400;"></span></div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin: 8px 0;">
+                        <button class="btn btn-ghost btn-ia" data-accion="resumen">📋 Resumen</button>
+                        <button class="btn btn-ghost btn-ia" data-accion="titulo">🏷️ Título</button>
+                        <button class="btn btn-ghost btn-ia" data-accion="puntos">✅ Tareas</button>
+                        <button class="btn btn-ghost btn-ia" data-accion="post">📱 Post redes</button>
+                        <button class="btn btn-ghost btn-ia" data-accion="blog">📰 Blog</button>
+                        <button class="btn btn-ghost btn-ia" data-accion="devocional">🙏 Devocional</button>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <input type="text" id="ollama-chat-input" class="panel-textarea" style="height: 38px; min-height: 38px; padding: 0 12px; flex:1;" placeholder="Pregúntale algo a este audio…">
+                        <button class="btn btn-gemini" id="btn-ollama-chat">💬 Preguntar</button>
+                    </div>
+                    <textarea class="panel-textarea" id="ollama-result" style="display:none; margin-top:10px; min-height: 140px;" placeholder="Aquí aparece la respuesta de la IA…"></textarea>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-ghost" onclick="cerrarModal()">Cerrar</button>
-                <div style="display:flex; gap:10px; align-items:center;">
-                    <button class="btn btn-gemini" id="btn-traducir" onclick="traducir()">🌐 Traducir a español</button>
+                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+                    <button class="btn btn-ghost" id="btn-export-menu" onclick="toggleExportMenu(event)">⬇️ Exportar</button>
+                    <div id="export-menu" style="display:none; position:absolute; bottom: 64px; right: 24px; background: var(--ink, #111); border: 1px solid var(--line, #333); border-radius: 10px; padding: 6px; z-index: 50; box-shadow: 0 12px 30px rgba(0,0,0,.5);">
+                        <button class="btn btn-ghost" style="display:block; width:100%; text-align:left;" onclick="exportar('txt')">📄 Texto (.txt)</button>
+                        <button class="btn btn-ghost" style="display:block; width:100%; text-align:left;" onclick="exportar('docx')">📝 Word (.docx)</button>
+                        <button class="btn btn-ghost" style="display:block; width:100%; text-align:left;" onclick="exportar('pdf')">📕 PDF</button>
+                        <button class="btn btn-ghost" style="display:block; width:100%; text-align:left;" onclick="descargarSubs('srt')">🎬 Subtítulos (.srt)</button>
+                        <button class="btn btn-ghost" style="display:block; width:100%; text-align:left;" onclick="descargarSubs('vtt')">🎬 Subtítulos (.vtt)</button>
+                    </div>
+                    <button class="btn btn-gemini" id="btn-traducir" onclick="traducir()">🌐 Traducir</button>
                     <button class="btn btn-primary" onclick="guardarEdicion()">💾 Guardar</button>
                 </div>
             </div>
@@ -515,7 +547,7 @@
     </div>
 
     <div class="toast-container" id="toast-container"></div>
-    <script src="app.js?v=2.12"></script>
+    <script src="app.js?v=3.0"></script>
     <script>
         // ─── Panel admin: gestión de emails autorizados ───
         (function() {

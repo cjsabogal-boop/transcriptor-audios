@@ -5,7 +5,7 @@ import WebKit
 
 let SERVER_URL = "http://127.0.0.1:5111"
 
-final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate {
     var window: NSWindow!
     var webView: WKWebView!
     var serverProc: Process?
@@ -19,10 +19,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular) // app normal del Dock (con puntito)
+        buildMenu()   // sin menú, ⌘Q/⌘W/⌘C/⌘V no funcionan
         buildWindow()
         startServer()
         waitForServerThenLoad()
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func buildMenu() {
+        let mainMenu = NSMenu()
+
+        // Menú de la app: Transcriptor → Ocultar / Salir (⌘Q)
+        let appItem = NSMenuItem()
+        mainMenu.addItem(appItem)
+        let appMenu = NSMenu()
+        appItem.submenu = appMenu
+        appMenu.addItem(withTitle: "Ocultar Transcriptor", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(NSMenuItem.separator())
+        appMenu.addItem(withTitle: "Salir de Transcriptor", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+
+        // Menú Archivo: Cerrar ventana (⌘W)
+        let fileItem = NSMenuItem()
+        mainMenu.addItem(fileItem)
+        let fileMenu = NSMenu(title: "Archivo")
+        fileItem.submenu = fileMenu
+        fileMenu.addItem(withTitle: "Cerrar ventana", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+
+        // Menú Edición: copiar/pegar/seleccionar (necesario para que funcionen en el WebView)
+        let editItem = NSMenuItem()
+        mainMenu.addItem(editItem)
+        let editMenu = NSMenu(title: "Edición")
+        editItem.submenu = editMenu
+        editMenu.addItem(withTitle: "Deshacer", action: Selector(("undo:")), keyEquivalent: "z")
+        editMenu.addItem(withTitle: "Rehacer", action: Selector(("redo:")), keyEquivalent: "Z")
+        editMenu.addItem(NSMenuItem.separator())
+        editMenu.addItem(withTitle: "Cortar", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: "Copiar", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: "Pegar", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: "Seleccionar todo", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+
+        NSApp.mainMenu = mainMenu
     }
 
     func buildWindow() {
@@ -42,6 +78,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
         conf.websiteDataStore = .nonPersistent()
         webView = WKWebView(frame: frame, configuration: conf)
         webView.navigationDelegate = self
+        webView.uiDelegate = self
         webView.autoresizingMask = [.width, .height]
         webView.setValue(false, forKey: "drawsBackground") // sin fondo blanco al cargar
         window.contentView = webView
@@ -181,6 +218,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
             _ = sem.wait(timeout: .now() + 2)
         }
         serverProc?.terminate()
+    }
+
+    // Permitir el micrófono para el botón "Grabar" (macOS pide su propio permiso aparte)
+    @available(macOS 12.0, *)
+    func webView(_ webView: WKWebView,
+                 requestMediaCapturePermissionFor origin: WKSecurityOrigin,
+                 initiatedByFrame frame: WKFrameInfo,
+                 type: WKMediaCaptureType,
+                 decisionHandler: @escaping (WKPermissionDecision) -> Void) {
+        decisionHandler(.grant)
     }
 
     // Reabrir ventana al hacer clic en el ícono del Dock

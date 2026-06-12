@@ -12,5 +12,6 @@
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>LSMinimumSystemVersion</key><string>10.13</string>
   <key>NSHighResolutionCapable</key><true/>
+  <key>NSMicrophoneUsageDescription</key><string>Transcriptor usa el micrófono para grabar audios y transcribirlos.</string>
 </dict>
 </plist>

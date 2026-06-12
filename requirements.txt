@@ -5,9 +5,12 @@ flask-cors
 requests
 deep-translator
 edge-tts
-google-generativeai
 python-dotenv
 faster-whisper
+# Exportar y herramientas
+python-docx
+fpdf2
+yt-dlp
 # Respaldo opcional (motor antiguo, requiere PyTorch ~pesado). No necesario si hay faster-whisper:
 # openai-whisper
 # torch

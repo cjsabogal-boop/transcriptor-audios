@@ -748,6 +748,342 @@ def api_translate():
         return jsonify({"success": False, "msg": str(e)}), 500
 
 
+# ════════════════════════════════════════════════════════════════
+# HERRAMIENTAS: subtítulos, exportar, buscar, URL, Ollama
+# ════════════════════════════════════════════════════════════════
+
+def _auto_pip(*paquetes):
+    """Instala paquetes pip al vuelo si faltan (para usuarios que ya tenían
+    la app instalada antes de esta versión)."""
+    try:
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", *paquetes, "--break-system-packages"],
+            capture_output=True, timeout=300
+        )
+    except Exception:
+        try:
+            subprocess.run([sys.executable, "-m", "pip", "install", *paquetes],
+                           capture_output=True, timeout=300)
+        except Exception:
+            pass
+
+
+def _leer_json_audio(title):
+    safe = secure_filename(title)
+    p = os.path.join(AUDIO_DIR, safe + ".json")
+    if not os.path.exists(p):
+        return None, safe
+    with open(p, "r", encoding="utf-8") as f:
+        return json.load(f), safe
+
+
+def _fmt_ts(seg, vtt=False):
+    """Segundos -> '00:01:23,456' (srt) o '00:01:23.456' (vtt)."""
+    ms = int(round((seg - int(seg)) * 1000))
+    s = int(seg)
+    h, s = divmod(s, 3600)
+    m, s = divmod(s, 60)
+    sep = "." if vtt else ","
+    return f"{h:02d}:{m:02d}:{s:02d}{sep}{ms:03d}"
+
+
+@app.route("/api/audios/<title>/subtitles")
+def descargar_subtitulos(title):
+    """Descarga subtítulos .srt o .vtt construidos con los timestamps de Whisper."""
+    fmt = (request.args.get("fmt") or "srt").lower()
+    data, safe = _leer_json_audio(title)
+    if not data:
+        return jsonify({"success": False, "msg": "Audio no encontrado."}), 404
+    segments = data.get("segments") or []
+    if not segments:
+        return jsonify({"success": False, "msg": "Este audio no tiene marcas de tiempo (fue transcrito con una versión vieja). Vuelve a transcribirlo."}), 400
+
+    lineas = []
+    if fmt == "vtt":
+        lineas.append("WEBVTT\n")
+        for s in segments:
+            lineas.append(f"{_fmt_ts(s['start'], vtt=True)} --> {_fmt_ts(s['end'], vtt=True)}\n{s['text'].strip()}\n")
+        mime, ext = "text/vtt", "vtt"
+    else:
+        for i, s in enumerate(segments, 1):
+            lineas.append(f"{i}\n{_fmt_ts(s['start'])} --> {_fmt_ts(s['end'])}\n{s['text'].strip()}\n")
+        mime, ext = "application/x-subrip", "srt"
+
+    import io
+    buf = io.BytesIO("\n".join(lineas).encode("utf-8"))
+    return send_file(buf, mimetype=mime, as_attachment=True, download_name=f"{safe}.{ext}")
+
+
+@app.route("/api/audios/<title>/export")
+def exportar_audio(title):
+    """Exporta la transcripción a txt, docx (Word) o pdf."""
+    fmt = (request.args.get("fmt") or "txt").lower()
+    data, safe = _leer_json_audio(title)
+    if not data:
+        return jsonify({"success": False, "msg": "Audio no encontrado."}), 404
+    texto = (data.get("text_es") or data.get("text_en") or "").strip()
+    if not texto:
+        return jsonify({"success": False, "msg": "No hay texto que exportar."}), 400
+    fecha = time.strftime("%d/%m/%Y")
+    # Título legible: los nombres de archivo largos con _ no se pueden partir en líneas
+    titulo_legible = title.replace("_", " ").strip()
+    import io
+
+    if fmt == "txt":
+        cuerpo = f"{titulo_legible}\n{'=' * len(titulo_legible)}\nFecha: {fecha}\n\n{texto}\n"
+        buf = io.BytesIO(cuerpo.encode("utf-8"))
+        return send_file(buf, mimetype="text/plain", as_attachment=True, download_name=f"{safe}.txt")
+
+    if fmt == "docx":
+        try:
+            import docx  # python-docx
+        except ImportError:
+            _auto_pip("python-docx")
+            try:
+                import docx
+            except ImportError:
+                return jsonify({"success": False, "msg": "No se pudo instalar python-docx."}), 500
+        doc = docx.Document()
+        doc.add_heading(titulo_legible, level=1)
+        doc.add_paragraph(f"Fecha: {fecha}").italic = True
+        for par in texto.split("\n\n"):
+            if par.strip():
+                doc.add_paragraph(par.strip())
+        buf = io.BytesIO()
+        doc.save(buf)
+        buf.seek(0)
+        return send_file(buf, as_attachment=True, download_name=f"{safe}.docx",
+                         mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+    if fmt == "pdf":
+        try:
+            from fpdf import FPDF
+        except ImportError:
+            _auto_pip("fpdf2")
+            try:
+                from fpdf import FPDF
+            except ImportError:
+                return jsonify({"success": False, "msg": "No se pudo instalar fpdf2."}), 500
+        pdf = FPDF()
+        pdf.set_auto_page_break(auto=True, margin=18)
+        pdf.add_page()
+        pdf.set_font("Helvetica", "B", 16)
+        pdf.multi_cell(0, 9, titulo_legible.encode("latin-1", "replace").decode("latin-1"))
+        # fpdf2 deja el cursor en el margen derecho tras cada multi_cell:
+        # hay que volver al margen izquierdo o el siguiente bloque queda sin ancho.
+        pdf.set_x(pdf.l_margin)
+        pdf.set_font("Helvetica", "I", 10)
+        pdf.multi_cell(0, 7, f"Fecha: {fecha}")
+        pdf.set_x(pdf.l_margin)
+        pdf.ln(4)
+        pdf.set_font("Helvetica", "", 11)
+        pdf.multi_cell(0, 6, texto.encode("latin-1", "replace").decode("latin-1"))
+        out = pdf.output()
+        buf = io.BytesIO(bytes(out))
+        return send_file(buf, mimetype="application/pdf", as_attachment=True, download_name=f"{safe}.pdf")
+
+    return jsonify({"success": False, "msg": f"Formato no soportado: {fmt}"}), 400
+
+
+@app.route("/api/search")
+def buscar_transcripciones():
+    """Busca un texto dentro de TODAS las transcripciones guardadas."""
+    q = (request.args.get("q") or "").strip().lower()
+    if not q:
+        return jsonify([])
+    resultados = []
+    try:
+        for f in os.listdir(AUDIO_DIR):
+            if not f.lower().endswith(".json"):
+                continue
+            try:
+                with open(os.path.join(AUDIO_DIR, f), "r", encoding="utf-8") as fh:
+                    data = json.load(fh)
+            except Exception:
+                continue
+            texto = ((data.get("text_es") or "") + " " + (data.get("text_en") or "")).lower()
+            title = os.path.splitext(f)[0]
+            idx = texto.find(q)
+            if q in title.lower() or idx >= 0:
+                # Fragmento alrededor de la coincidencia
+                snippet = ""
+                if idx >= 0:
+                    ini = max(0, idx - 60)
+                    snippet = ("…" if ini > 0 else "") + texto[ini:idx + len(q) + 80].strip() + "…"
+                resultados.append({"title": title, "snippet": snippet})
+    except Exception:
+        pass
+    return jsonify(resultados)
+
+
+@app.route("/api/upload_url", methods=["POST"])
+def upload_desde_url():
+    """Descarga el audio de un link (YouTube, etc.) con yt-dlp y lo transcribe."""
+    global CURRENT_PROCESS
+    if STATE.get("is_processing"):
+        return jsonify({"success": False, "msg": "Ya hay una transcripción en proceso."})
+    data = request.json or {}
+    url = (data.get("url") or "").strip()
+    language = data.get("language", "es")
+    model_size = (data.get("model") or DEFAULT_MODEL).strip().lower()
+    if model_size not in ALLOWED_MODELS:
+        model_size = DEFAULT_MODEL
+    if not url.lower().startswith(("http://", "https://")):
+        return jsonify({"success": False, "msg": "Pega un link válido (http…)."}), 400
+
+    try:
+        import yt_dlp
+    except ImportError:
+        STATE["status_text"] = "Instalando descargador de links (yt-dlp)…"
+        _auto_pip("yt-dlp")
+        try:
+            import yt_dlp
+        except ImportError:
+            return jsonify({"success": False, "msg": "No se pudo instalar yt-dlp."}), 500
+
+    def descargar_y_transcribir():
+        global CURRENT_PROCESS
+        try:
+            STATE["is_processing"] = True
+            STATE["completed"] = False
+            STATE["error"] = False
+            STATE["progress_percent"] = 2.0
+            STATE["status_text"] = "Descargando audio del link…"
+            opts = {
+                "format": "bestaudio/best",
+                "outtmpl": os.path.join(AUDIO_DIR, "%(title).80s.%(ext)s"),
+                "quiet": True,
+                "noplaylist": True,
+                "ffmpeg_location": os.path.dirname(find_binary("ffmpeg")),
+            }
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                ruta = ydl.prepare_filename(info)
+            filename = os.path.basename(ruta)
+            STATE["status_text"] = "Audio descargado. Transcribiendo…"
+            # is_processing la gestiona proceso_fondo de aquí en adelante
+            p = mp.Process(target=proceso_fondo,
+                           args=(ruta, filename, STATE, None, None, language, model_size, "transcribe"))
+            p.start()
+            CURRENT_PROCESS = p
+        except Exception as e:
+            STATE["is_processing"] = False
+            STATE["error"] = True
+            STATE["status_text"] = f"❌ No se pudo descargar el link: {e}"
+
+    threading.Thread(target=descargar_y_transcribir, daemon=True).start()
+    return jsonify({"success": True})
+
+
+# ── IA local con Ollama (opcional: solo si está instalado) ──
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
+# Preferencia de modelos (si hay varios instalados se usa el primero que exista)
+OLLAMA_PREFERIDOS = ["llama3.2", "llama3.1", "llama3", "qwen2.5", "gemma2", "mistral", "phi3"]
+
+OLLAMA_PROMPTS = {
+    "resumen": (
+        "Eres un asistente editorial en español (colombiano neutro, sin voseo). Resume la siguiente "
+        "transcripción: 1-2 oraciones con la idea principal, luego los puntos clave en líneas que "
+        "empiezan con '- ', y cierra con la conclusión si la hay. Solo el resumen, sin introducciones."
+    ),
+    "titulo": (
+        "Genera UN título corto y atractivo en español (máximo 8 palabras) para esta transcripción. "
+        "Responde SOLO el título, sin comillas ni punto final."
+    ),
+    "puntos": (
+        "Extrae las tareas, acuerdos y acciones mencionadas en esta transcripción como lista de "
+        "líneas que empiezan con '- '. Si no hay ninguna, responde 'No se mencionan tareas concretas.'"
+    ),
+    "post": (
+        "Eres un community manager en español. Convierte esta transcripción en un post atractivo para "
+        "redes sociales (Instagram/Facebook): gancho inicial, 2-4 párrafos cortos, cierre con llamado "
+        "a la acción y 3-5 hashtags. Sin markdown."
+    ),
+    "devocional": (
+        "Eres un editor de contenido cristiano en español. Convierte esta transcripción de sermón en un "
+        "devocional breve: título, pasaje bíblico central, reflexión de 3-4 párrafos y una oración final. "
+        "Tono cálido y pastoral. Sin markdown."
+    ),
+    "blog": (
+        "Eres un redactor profesional en español. Convierte esta transcripción en un artículo de blog "
+        "bien estructurado: título, introducción, desarrollo en secciones y conclusión. Sin markdown, "
+        "solo texto con párrafos."
+    ),
+}
+
+
+def _ollama_modelos():
+    try:
+        r = requests.get(f"{OLLAMA_URL}/api/tags", timeout=2)
+        if r.status_code == 200:
+            return [m.get("name", "") for m in r.json().get("models", [])]
+    except Exception:
+        pass
+    return None  # Ollama no está corriendo
+
+
+@app.route("/api/ollama/status")
+def ollama_status():
+    modelos = _ollama_modelos()
+    if modelos is None:
+        return jsonify({"available": False, "models": []})
+    return jsonify({"available": True, "models": modelos})
+
+
+@app.route("/api/ollama/run", methods=["POST"])
+def ollama_run():
+    """Ejecuta una acción de IA local sobre una transcripción (o un chat libre)."""
+    data = request.json or {}
+    accion = data.get("action", "resumen")
+    title = data.get("title", "")
+    pregunta = (data.get("question") or "").strip()
+
+    modelos = _ollama_modelos()
+    if not modelos:
+        return jsonify({"success": False, "msg": "Ollama no está corriendo. Instálalo desde ollama.com y descarga un modelo (ej: 'ollama pull llama3.2')."}), 503
+
+    # Elegir modelo: el preferido que esté instalado, si no el primero
+    modelo = data.get("ollama_model") or ""
+    if not modelo:
+        for pref in OLLAMA_PREFERIDOS:
+            match = next((m for m in modelos if m.startswith(pref)), None)
+            if match:
+                modelo = match
+                break
+        if not modelo:
+            modelo = modelos[0]
+
+    jdata, _safe = _leer_json_audio(title)
+    texto = ((jdata or {}).get("text_es") or (jdata or {}).get("text_en") or "").strip()
+    if not texto:
+        return jsonify({"success": False, "msg": "No encontré el texto de ese audio."}), 404
+
+    if accion == "chat":
+        if not pregunta:
+            return jsonify({"success": False, "msg": "Escribe una pregunta."}), 400
+        prompt = (
+            "Responde en español (colombiano neutro, sin voseo) usando SOLO la información de esta "
+            f"transcripción. Si la respuesta no está en el texto, dilo.\n\nTRANSCRIPCIÓN:\n{texto}\n\n"
+            f"PREGUNTA: {pregunta}"
+        )
+    else:
+        base = OLLAMA_PROMPTS.get(accion, OLLAMA_PROMPTS["resumen"])
+        prompt = f"{base}\n\nTRANSCRIPCIÓN:\n{texto}"
+
+    try:
+        r = requests.post(f"{OLLAMA_URL}/api/generate",
+                          json={"model": modelo, "prompt": prompt, "stream": False},
+                          timeout=600)
+        if r.status_code != 200:
+            return jsonify({"success": False, "msg": f"Ollama respondió HTTP {r.status_code}."}), 500
+        respuesta = (r.json().get("response") or "").strip()
+        return jsonify({"success": True, "text": respuesta, "model": modelo, "action": accion})
+    except requests.exceptions.Timeout:
+        return jsonify({"success": False, "msg": "La IA local tardó demasiado. Prueba con un modelo más pequeño."}), 504
+    except Exception as e:
+        return jsonify({"success": False, "msg": str(e)}), 500
+
+
 PACKAGE_README = """TRANSCRIPTOR DE AUDIOS — Instalación en Mac
 ============================================
 
