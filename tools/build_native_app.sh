@@ -35,11 +35,9 @@ cp "$ROOT/assets/icon.icns" "$APP/Contents/Resources/icon.icns"
 # ── Info.plist ──
 cp "$ROOT/tools/app_template/Info.plist" "$APP/Contents/Info.plist"
 
-# ── Modelo por defecto en run_server.sh embebido (si aplica) ──
-# (el binario Swift exporta WHISPER_MODEL=medium por defecto; lo dejamos coherente)
-if [ "$MODEL" != "medium" ]; then
-  /usr/bin/sed -i '' "s/\"medium\"/\"$MODEL\"/" "$APP/Contents/MacOS/Transcriptor" 2>/dev/null || true
-fi
+# ── Modelo por defecto ──
+# El binario Swift lee el modelo de este archivo (método confiable, sin parchear binario).
+printf '%s' "$MODEL" > "$APP/Contents/Resources/app/model.txt"
 
 # ── Firma ad-hoc (evita "app dañada"; NO quita el clic-derecho la 1a vez) ──
 codesign --force --deep --sign - "$APP" 2>/dev/null || true

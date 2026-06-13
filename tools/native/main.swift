@@ -108,7 +108,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         p.arguments = [runner]
         p.currentDirectoryURL = URL(fileURLWithPath: resourcesAppDir)
         var env = ProcessInfo.processInfo.environment
-        env["WHISPER_MODEL"] = env["WHISPER_MODEL"] ?? "medium"
+        // El modelo se define en Resources/app/model.txt (lo escribe build_native_app.sh).
+        // Así no hay que parchear el binario compilado. Si falta, cae a "small".
+        var modelo = "small"
+        let modelFile = resourcesAppDir + "/model.txt"
+        if let m = try? String(contentsOfFile: modelFile, encoding: .utf8) {
+            let limpio = m.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !limpio.isEmpty { modelo = limpio }
+        }
+        env["WHISPER_MODEL"] = env["WHISPER_MODEL"] ?? modelo
         // PATH amplio para encontrar python3/ffmpeg/brew
         let extra = "\(NSHomeDirectory())/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
         env["PATH"] = extra + ":" + (env["PATH"] ?? "")
