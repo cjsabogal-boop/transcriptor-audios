@@ -59,40 +59,85 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     }
 
     // ── HUD flotante (pastilla) para mostrar el estado del dictado sin robar foco ──
-    func mostrarHUD(_ texto: String, color: NSColor) {
-        if hud == nil {
-            let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 230, height: 56),
-                                styleMask: [.nonactivatingPanel, .borderless],
-                                backing: .buffered, defer: false)
-            panel.level = .floating
-            panel.isFloatingPanel = true
-            panel.hidesOnDeactivate = false
-            panel.backgroundColor = .clear
-            panel.isOpaque = false
-            panel.ignoresMouseEvents = true
-            let bg = NSView(frame: panel.contentView!.bounds)
-            bg.wantsLayer = true
-            bg.layer?.backgroundColor = NSColor(red: 0.05, green: 0.05, blue: 0.05, alpha: 0.95).cgColor
-            bg.layer?.cornerRadius = 14
-            bg.autoresizingMask = [.width, .height]
-            panel.contentView?.addSubview(bg)
-            hudLabel = NSTextField(labelWithString: texto)
-            hudLabel.font = NSFont.monospacedSystemFont(ofSize: 15, weight: .semibold)
-            hudLabel.alignment = .center
-            hudLabel.frame = panel.contentView!.bounds
-            hudLabel.autoresizingMask = [.width, .height]
-            hudLabel.cell?.usesSingleLineMode = false
-            panel.contentView?.addSubview(hudLabel)
-            hud = panel
-        }
-        hudLabel.stringValue = texto
+    var hudDot: NSView!
+    var hudSubLabel: NSTextField!
+    let HUD_W: CGFloat = 340
+    let HUD_H: CGFloat = 74
+
+    func construirHUD() {
+        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: HUD_W, height: HUD_H),
+                            styleMask: [.nonactivatingPanel, .borderless],
+                            backing: .buffered, defer: false)
+        panel.level = .floating
+        panel.isFloatingPanel = true
+        panel.hidesOnDeactivate = false
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.ignoresMouseEvents = true
+        panel.hasShadow = true
+
+        let bg = NSView(frame: panel.contentView!.bounds)
+        bg.wantsLayer = true
+        bg.layer?.backgroundColor = NSColor(red: 0.04, green: 0.04, blue: 0.04, alpha: 0.97).cgColor
+        bg.layer?.cornerRadius = 20
+        bg.layer?.borderWidth = 1
+        bg.layer?.borderColor = NSColor(red: 0.78, green: 0.94, blue: 0.21, alpha: 0.30).cgColor
+        bg.autoresizingMask = [.width, .height]
+        panel.contentView?.addSubview(bg)
+
+        // Punto de estado (izquierda)
+        hudDot = NSView(frame: NSRect(x: 28, y: HUD_H/2 - 6, width: 12, height: 12))
+        hudDot.wantsLayer = true
+        hudDot.layer?.cornerRadius = 6
+        bg.addSubview(hudDot)
+
+        // Título
+        hudLabel = NSTextField(labelWithString: "")
+        hudLabel.font = NSFont.monospacedSystemFont(ofSize: 16, weight: .bold)
+        hudLabel.frame = NSRect(x: 54, y: 36, width: HUD_W - 70, height: 22)
+        hudLabel.autoresizingMask = [.width]
+        bg.addSubview(hudLabel)
+
+        // Subtítulo
+        hudSubLabel = NSTextField(labelWithString: "")
+        hudSubLabel.font = NSFont.monospacedSystemFont(ofSize: 11.5, weight: .regular)
+        hudSubLabel.textColor = NSColor(white: 1, alpha: 0.45)
+        hudSubLabel.frame = NSRect(x: 54, y: 16, width: HUD_W - 70, height: 16)
+        hudSubLabel.autoresizingMask = [.width]
+        bg.addSubview(hudSubLabel)
+
+        hud = panel
+    }
+
+    func mostrarHUD(titulo: String, subtitulo: String, color: NSColor, pulsa: Bool = false) {
+        if hud == nil { construirHUD() }
+        hudLabel.stringValue = titulo
         hudLabel.textColor = color
+        hudSubLabel.stringValue = subtitulo
+        hudDot.layer?.backgroundColor = color.cgColor
+        // Animación de pulso del punto mientras graba
+        hudDot.layer?.removeAllAnimations()
+        if pulsa {
+            let a = CABasicAnimation(keyPath: "opacity")
+            a.fromValue = 1.0; a.toValue = 0.25
+            a.duration = 0.7; a.autoreverses = true
+            a.repeatCount = .infinity
+            hudDot.layer?.add(a, forKey: "pulso")
+        } else {
+            hudDot.layer?.opacity = 1
+        }
         if let screen = NSScreen.main {
             let r = screen.visibleFrame
-            hud!.setFrameOrigin(NSPoint(x: r.midX - 115, y: r.minY + 90))
+            hud!.setFrameOrigin(NSPoint(x: r.midX - HUD_W/2, y: r.minY + 110))
         }
         hud!.orderFrontRegardless()
     }
+
+    // Compatibilidad: versión corta de un solo texto
+    func mostrarHUD(_ texto: String, color: NSColor) {
+        mostrarHUD(titulo: texto, subtitulo: "", color: color)
+    }
+
     func ocultarHUD(despues: Double = 0) {
         if despues > 0 {
             DispatchQueue.main.asyncAfter(deadline: .now() + despues) { [weak self] in self?.hud?.orderOut(nil) }
@@ -111,7 +156,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         if !AXIsProcessTrusted() {
             let opts = [kAXTrustedCheckOptionPrompt.takeRetainedValue() as String: true] as CFDictionary
             _ = AXIsProcessTrustedWithOptions(opts)
-            mostrarHUD("Activa Accesibilidad para\nTranscriptor y vuelve a intentar", color: .systemOrange)
+            mostrarHUD(titulo: "Permiso necesario", subtitulo: "Activa Accesibilidad para Transcriptor", color: .systemOrange)
             ocultarHUD(despues: 4)
             return
         }
@@ -129,12 +174,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             audioRecorder?.delegate = self
             if audioRecorder?.record() == true {
                 dictadoGrabando = true
-                mostrarHUD("🎙️  Dictando…  (Fn para terminar)", color: NSColor(red: 0.78, green: 0.94, blue: 0.21, alpha: 1))
+                mostrarHUD(titulo: "Dictando…", subtitulo: "toca Fn de nuevo para terminar",
+                           color: NSColor(red: 0.96, green: 0.30, blue: 0.30, alpha: 1), pulsa: true)
             } else {
-                mostrarHUD("No se pudo iniciar el micrófono", color: .systemRed); ocultarHUD(despues: 3)
+                mostrarHUD(titulo: "Sin micrófono", subtitulo: "no se pudo iniciar la grabación", color: .systemRed); ocultarHUD(despues: 3)
             }
         } catch {
-            mostrarHUD("Error con el micrófono", color: .systemRed); ocultarHUD(despues: 3)
+            mostrarHUD(titulo: "Error de micrófono", subtitulo: "revisa los permisos", color: .systemRed); ocultarHUD(despues: 3)
         }
     }
 
@@ -142,7 +188,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         dictadoGrabando = false
         audioRecorder?.stop()
         audioRecorder = nil
-        mostrarHUD("✍️  Transcribiendo…", color: NSColor(red: 0.78, green: 0.94, blue: 0.21, alpha: 1))
+        mostrarHUD(titulo: "Transcribiendo…", subtitulo: "un momento, ya casi",
+                   color: NSColor(red: 0.78, green: 0.94, blue: 0.21, alpha: 1), pulsa: true)
         guard let url = dictadoURL else { return }
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             self?.transcribirYpegar(url)
@@ -152,7 +199,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
     // ── Enviar el audio al server, recibir el texto y pegarlo donde esté el cursor ──
     func transcribirYpegar(_ url: URL) {
         guard let data = try? Data(contentsOf: url), data.count > 1200 else {
-            DispatchQueue.main.async { self.mostrarHUD("Grabación muy corta", color: .systemOrange); self.ocultarHUD(despues: 2) }
+            DispatchQueue.main.async { self.mostrarHUD(titulo: "Muy corto", subtitulo: "no alcancé a oír nada", color: .systemOrange); self.ocultarHUD(despues: 2) }
             return
         }
         var modelo = "small"
@@ -193,11 +240,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
             }
             DispatchQueue.main.async {
                 if texto.isEmpty {
-                    self.mostrarHUD("No se entendió el audio", color: .systemOrange); self.ocultarHUD(despues: 2)
+                    self.mostrarHUD(titulo: "No entendí", subtitulo: "intenta hablar un poco más claro", color: .systemOrange); self.ocultarHUD(despues: 2)
                 } else {
                     self.pegarTexto(texto)
-                    self.mostrarHUD("✅ Listo", color: NSColor(red: 0.78, green: 0.94, blue: 0.21, alpha: 1))
-                    self.ocultarHUD(despues: 1)
+                    self.mostrarHUD(titulo: "Listo ✓", subtitulo: "texto pegado donde tenías el cursor",
+                                    color: NSColor(red: 0.55, green: 0.86, blue: 0.35, alpha: 1))
+                    self.ocultarHUD(despues: 1.4)
                 }
             }
             try? FileManager.default.removeItem(at: url)
