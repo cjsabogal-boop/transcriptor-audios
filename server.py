@@ -386,6 +386,52 @@ def upload_file():
     CURRENT_PROCESS.start()
     return jsonify({"success": True})
 
+import threading as _threading
+_DICTADO_LOCK = _threading.Lock()
+
+
+@app.route("/api/dictado", methods=["POST"])
+def api_dictado():
+    """Dictado universal: recibe un audio corto, lo transcribe de inmediato
+    (síncrono) y devuelve el texto para que la app lo pegue donde esté el cursor.
+    No usa la cola ni guarda el audio en la biblioteca."""
+    if 'audiofile' not in request.files:
+        return jsonify({"success": False, "msg": "No se envió audio."}), 400
+    file = request.files['audiofile']
+    language = request.form.get('language', 'es')
+    model_size = (request.form.get('model') or DEFAULT_MODEL).strip().lower()
+    if model_size not in ALLOWED_MODELS:
+        model_size = DEFAULT_MODEL
+
+    lang_whisper = None if (not language or language in ("", "None")) else language.strip().lower()
+    if lang_whisper not in (None, "es", "en"):
+        lang_whisper = None
+
+    ext = os.path.splitext(file.filename or "dictado.webm")[1] or ".webm"
+    tmp = os.path.join(AUDIO_DIR, f"_dictado_temp{ext}")
+    file.save(tmp)
+    ruta_wav = None
+    try:
+        with _DICTADO_LOCK:  # un dictado a la vez (el modelo no es concurrente)
+            ruta = preconvertir_audio(tmp)
+            ruta_wav = ruta if ruta != tmp else None
+            engine, modelo = cargar_modelo(model_size)
+            if engine == "fw":
+                seg_iter, _info = modelo.transcribe(ruta, language=lang_whisper, beam_size=5)
+                texto = "".join(s.text for s in seg_iter).strip()
+            else:
+                resultado = modelo.transcribe(ruta, language=lang_whisper, fp16=False)
+                texto = resultado["text"].strip()
+        return jsonify({"success": True, "text": texto})
+    except Exception as e:
+        return jsonify({"success": False, "msg": str(e)}), 500
+    finally:
+        for p in (tmp, ruta_wav):
+            if p and os.path.exists(p):
+                try: os.remove(p)
+                except Exception: pass
+
+
 def segmentos_a_parrafos(segments, pausa_seg=0.8, max_chars=320):
     """Arma el texto en párrafos legibles (en vez de un bloque pegado) usando
     los tiempos de Whisper: una pausa al hablar (> pausa_seg) abre un párrafo

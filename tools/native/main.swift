@@ -2,14 +2,23 @@
 // Ventana propia (no Chrome), puntito en el Dock, arranca/apaga el servidor Python.
 import Cocoa
 import WebKit
+import AVFoundation
+import ApplicationServices
 
 let SERVER_URL = "http://127.0.0.1:5111"
 
-final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate, AVAudioRecorderDelegate {
     var window: NSWindow!
     var webView: WKWebView!
     var serverProc: Process?
     var loadingLabel: NSTextField!
+
+    // ── Dictado universal (tecla Fn en cualquier app) ──
+    var audioRecorder: AVAudioRecorder?
+    var dictadoURL: URL?
+    var dictadoGrabando = false
+    var hud: NSPanel?
+    var hudLabel: NSTextField!
 
     // Rutas dentro del bundle: Contents/MacOS/Transcriptor + Contents/Resources/app
     var resourcesAppDir: String {
@@ -27,25 +36,186 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    // Tecla Fn para empezar/parar la grabación (cuando la ventana está activa).
-    // La tecla Fn física es keyCode 63 y llega como evento flagsChanged.
+    // Tecla Fn = DICTADO UNIVERSAL en cualquier app.
+    // keyCode 63 = tecla Fn / 🌐, llega como evento flagsChanged.
+    // - monitor LOCAL: cuando Transcriptor está al frente
+    // - monitor GLOBAL: cuando estás en otra app (requiere permiso de Accesibilidad)
     var fnPresionada = false
     func setupTeclaFn() {
-        NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
-            guard let self = self else { return event }
-            if event.keyCode == 63 { // tecla Fn / 🌐
+        let handler: (NSEvent) -> Void = { [weak self] event in
+            guard let self = self else { return }
+            if event.keyCode == 63 {
                 let activa = event.modifierFlags.contains(.function)
-                // Disparar solo al PRESIONAR (no al soltar), evitando repeticiones
                 if activa && !self.fnPresionada {
                     self.fnPresionada = true
-                    self.webView.evaluateJavaScript(
-                        "window.__toggleGrabacion && window.__toggleGrabacion()", completionHandler: nil)
+                    self.toggleDictado()
                 } else if !activa {
                     self.fnPresionada = false
                 }
             }
-            return event
         }
+        NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { e in handler(e); return e }
+        NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { e in handler(e) }
+    }
+
+    // ── HUD flotante (pastilla) para mostrar el estado del dictado sin robar foco ──
+    func mostrarHUD(_ texto: String, color: NSColor) {
+        if hud == nil {
+            let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 230, height: 56),
+                                styleMask: [.nonactivatingPanel, .borderless],
+                                backing: .buffered, defer: false)
+            panel.level = .floating
+            panel.isFloatingPanel = true
+            panel.hidesOnDeactivate = false
+            panel.backgroundColor = .clear
+            panel.isOpaque = false
+            panel.ignoresMouseEvents = true
+            let bg = NSView(frame: panel.contentView!.bounds)
+            bg.wantsLayer = true
+            bg.layer?.backgroundColor = NSColor(red: 0.05, green: 0.05, blue: 0.05, alpha: 0.95).cgColor
+            bg.layer?.cornerRadius = 14
+            bg.autoresizingMask = [.width, .height]
+            panel.contentView?.addSubview(bg)
+            hudLabel = NSTextField(labelWithString: texto)
+            hudLabel.font = NSFont.monospacedSystemFont(ofSize: 15, weight: .semibold)
+            hudLabel.alignment = .center
+            hudLabel.frame = panel.contentView!.bounds
+            hudLabel.autoresizingMask = [.width, .height]
+            hudLabel.cell?.usesSingleLineMode = false
+            panel.contentView?.addSubview(hudLabel)
+            hud = panel
+        }
+        hudLabel.stringValue = texto
+        hudLabel.textColor = color
+        if let screen = NSScreen.main {
+            let r = screen.visibleFrame
+            hud!.setFrameOrigin(NSPoint(x: r.midX - 115, y: r.minY + 90))
+        }
+        hud!.orderFrontRegardless()
+    }
+    func ocultarHUD(despues: Double = 0) {
+        if despues > 0 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + despues) { [weak self] in self?.hud?.orderOut(nil) }
+        } else {
+            hud?.orderOut(nil)
+        }
+    }
+
+    // ── Empezar / parar el dictado ──
+    func toggleDictado() {
+        if dictadoGrabando { pararDictado() } else { empezarDictado() }
+    }
+
+    func empezarDictado() {
+        // Verificar permiso de Accesibilidad (necesario para pegar y para el Fn global)
+        if !AXIsProcessTrusted() {
+            let opts = [kAXTrustedCheckOptionPrompt.takeRetainedValue() as String: true] as CFDictionary
+            _ = AXIsProcessTrustedWithOptions(opts)
+            mostrarHUD("Activa Accesibilidad para\nTranscriptor y vuelve a intentar", color: .systemOrange)
+            ocultarHUD(despues: 4)
+            return
+        }
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("transcriptor_dictado.m4a")
+        try? FileManager.default.removeItem(at: tmp)
+        dictadoURL = tmp
+        let settings: [String: Any] = [
+            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+            AVSampleRateKey: 16000,
+            AVNumberOfChannelsKey: 1,
+            AVEncoderAudioQualityKey: AVAudioQuality.medium.rawValue,
+        ]
+        do {
+            audioRecorder = try AVAudioRecorder(url: tmp, settings: settings)
+            audioRecorder?.delegate = self
+            if audioRecorder?.record() == true {
+                dictadoGrabando = true
+                mostrarHUD("🎙️  Dictando…  (Fn para terminar)", color: NSColor(red: 0.78, green: 0.94, blue: 0.21, alpha: 1))
+            } else {
+                mostrarHUD("No se pudo iniciar el micrófono", color: .systemRed); ocultarHUD(despues: 3)
+            }
+        } catch {
+            mostrarHUD("Error con el micrófono", color: .systemRed); ocultarHUD(despues: 3)
+        }
+    }
+
+    func pararDictado() {
+        dictadoGrabando = false
+        audioRecorder?.stop()
+        audioRecorder = nil
+        mostrarHUD("✍️  Transcribiendo…", color: NSColor(red: 0.78, green: 0.94, blue: 0.21, alpha: 1))
+        guard let url = dictadoURL else { return }
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            self?.transcribirYpegar(url)
+        }
+    }
+
+    // ── Enviar el audio al server, recibir el texto y pegarlo donde esté el cursor ──
+    func transcribirYpegar(_ url: URL) {
+        guard let data = try? Data(contentsOf: url), data.count > 1200 else {
+            DispatchQueue.main.async { self.mostrarHUD("Grabación muy corta", color: .systemOrange); self.ocultarHUD(despues: 2) }
+            return
+        }
+        var modelo = "small"
+        let modelFile = resourcesAppDir + "/model.txt"
+        if let m = try? String(contentsOfFile: modelFile, encoding: .utf8) {
+            let limpio = m.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !limpio.isEmpty { modelo = limpio }
+        }
+        let boundary = "----dictado\(Int(Date().timeIntervalSince1970))"
+        var body = Data()
+        func campo(_ nombre: String, _ valor: String) {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(nombre)\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(valor)\r\n".data(using: .utf8)!)
+        }
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"audiofile\"; filename=\"dictado.m4a\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: audio/m4a\r\n\r\n".data(using: .utf8)!)
+        body.append(data)
+        body.append("\r\n".data(using: .utf8)!)
+        campo("language", "es")
+        campo("model", modelo)
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+
+        var req = URLRequest(url: URL(string: SERVER_URL + "/api/dictado")!)
+        req.httpMethod = "POST"
+        req.timeoutInterval = 120
+        req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        req.httpBody = body
+
+        URLSession.shared.dataTask(with: req) { [weak self] respData, _, err in
+            guard let self = self else { return }
+            var texto = ""
+            if let d = respData,
+               let obj = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
+               let t = obj["text"] as? String {
+                texto = t.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            DispatchQueue.main.async {
+                if texto.isEmpty {
+                    self.mostrarHUD("No se entendió el audio", color: .systemOrange); self.ocultarHUD(despues: 2)
+                } else {
+                    self.pegarTexto(texto)
+                    self.mostrarHUD("✅ Listo", color: NSColor(red: 0.78, green: 0.94, blue: 0.21, alpha: 1))
+                    self.ocultarHUD(despues: 1)
+                }
+            }
+            try? FileManager.default.removeItem(at: url)
+        }.resume()
+    }
+
+    // Pegar: poner el texto en el portapapeles y simular ⌘V en la app activa
+    func pegarTexto(_ texto: String) {
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(texto, forType: .string)
+        let src = CGEventSource(stateID: .combinedSessionState)
+        let vDown = CGEvent(keyboardEventSource: src, virtualKey: 0x09, keyDown: true)  // V
+        vDown?.flags = .maskCommand
+        let vUp = CGEvent(keyboardEventSource: src, virtualKey: 0x09, keyDown: false)
+        vUp?.flags = .maskCommand
+        vDown?.post(tap: .cghidEventTap)
+        vUp?.post(tap: .cghidEventTap)
     }
 
     func buildMenu() {
