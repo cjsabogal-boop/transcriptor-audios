@@ -23,7 +23,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         buildWindow()
         startServer()
         waitForServerThenLoad()
+        setupTeclaFn()
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    // Tecla Fn para empezar/parar la grabación (cuando la ventana está activa).
+    // La tecla Fn física es keyCode 63 y llega como evento flagsChanged.
+    var fnPresionada = false
+    func setupTeclaFn() {
+        NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
+            guard let self = self else { return event }
+            if event.keyCode == 63 { // tecla Fn / 🌐
+                let activa = event.modifierFlags.contains(.function)
+                // Disparar solo al PRESIONAR (no al soltar), evitando repeticiones
+                if activa && !self.fnPresionada {
+                    self.fnPresionada = true
+                    self.webView.evaluateJavaScript(
+                        "window.__toggleGrabacion && window.__toggleGrabacion()", completionHandler: nil)
+                } else if !activa {
+                    self.fnPresionada = false
+                }
+            }
+            return event
+        }
     }
 
     func buildMenu() {

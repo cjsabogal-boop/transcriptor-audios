@@ -242,7 +242,7 @@ let recordChunks = [];
 function setupRecord() {
     const btn = document.getElementById('btn-record');
     if (!btn) return;
-    btn.addEventListener('click', async () => {
+    const toggle = async () => {
         if (mediaRecorder && mediaRecorder.state === 'recording') {
             mediaRecorder.stop();
             return;
@@ -265,9 +265,21 @@ function setupRecord() {
             mediaRecorder.start();
             btn.textContent = '⏹ Detener';
             btn.classList.add('btn-danger');
-            showToast('info', 'Grabando… pulsa ⏹ para terminar.');
+            showToast('info', 'Grabando… pulsa Fn (o el botón) para terminar.');
         } catch (e) {
             showToast('error', 'No hay permiso de micrófono. Revisa Ajustes del sistema → Privacidad → Micrófono.');
+        }
+    };
+    btn.addEventListener('click', toggle);
+
+    // Disparadores por teclado:
+    //  - la app nativa llama a window.__toggleGrabacion() al presionar Fn
+    //  - ⌘⇧R como respaldo dentro de la ventana
+    window.__toggleGrabacion = toggle;
+    document.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'r' || e.key === 'R')) {
+            e.preventDefault();
+            toggle();
         }
     });
 }
