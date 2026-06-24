@@ -386,6 +386,32 @@ def upload_file():
     CURRENT_PROCESS.start()
     return jsonify({"success": True})
 
+def segmentos_a_parrafos(segments, pausa_seg=0.8, max_chars=320):
+    """Arma el texto en párrafos legibles (en vez de un bloque pegado) usando
+    los tiempos de Whisper: una pausa al hablar (> pausa_seg) abre un párrafo
+    nuevo. También corta párrafos demasiado largos al cerrar una oración."""
+    if not segments:
+        return ""
+    parrafos, actual, prev_end = [], [], None
+    for s in segments:
+        txt = (s.get("text") if isinstance(s, dict) else getattr(s, "text", "")).strip()
+        if not txt:
+            continue
+        start = s.get("start") if isinstance(s, dict) else getattr(s, "start", None)
+        end = s.get("end") if isinstance(s, dict) else getattr(s, "end", None)
+        # Pausa marcada entre segmentos -> nuevo párrafo
+        if prev_end is not None and start is not None and (start - prev_end) > pausa_seg and actual:
+            parrafos.append(" ".join(actual)); actual = []
+        actual.append(txt)
+        # Evitar párrafos kilométricos: cerrar cuando ya es largo y termina en oración
+        if sum(len(x) for x in actual) > max_chars and txt.endswith((".", "!", "?", "…", ";")):
+            parrafos.append(" ".join(actual)); actual = []
+        prev_end = end
+    if actual:
+        parrafos.append(" ".join(actual))
+    return "\n\n".join(p.strip() for p in parrafos if p.strip()).strip()
+
+
 def proceso_fondo(ruta_audio, filename, estado, start_time, end_time, language, model_size, task):
     import traceback
     def log(msg):
@@ -436,15 +462,14 @@ def proceso_fondo(ruta_audio, filename, estado, start_time, end_time, language, 
         # la traducción a español, si se pide, la hace Gemini después en el frontend).
         if engine == "fw":
             seg_iter, info = modelo.transcribe(ruta_procesable, language=lang_whisper, beam_size=5)
-            partes, segments = [], []
+            segments = []
             for i, s in enumerate(seg_iter):
-                partes.append(s.text)
                 segments.append({"id": i, "start": s.start, "end": s.end, "text": s.text})
-            texto = "".join(partes).strip()
+            texto = segmentos_a_parrafos(segments)
         else:
             resultado = modelo.transcribe(ruta_procesable, language=lang_whisper, fp16=False)
-            texto = resultado["text"].strip()
             segments = resultado.get("segments", [])
+            texto = segmentos_a_parrafos(segments) or resultado["text"].strip()
 
         # 3. Guardar resultados.
         # text_en = transcripción cruda original (entrada para la IA).
