@@ -144,7 +144,7 @@ MODEL_INFO = {
 # Modelo por defecto: lo define la variable de entorno WHISPER_MODEL.
 # Con faster-whisper, "small" corre cómodo incluso en 8GB, así que es el baseline.
 # El paquete para la máquina grande exporta WHISPER_MODEL=medium (lo sobreescribe).
-DEFAULT_MODEL = os.environ.get("WHISPER_MODEL", "small").strip().lower()
+DEFAULT_MODEL = os.environ.get("WHISPER_MODEL", "medium").strip().lower()
 if DEFAULT_MODEL not in ALLOWED_MODELS:
     DEFAULT_MODEL = "small"
 
